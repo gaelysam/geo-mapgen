@@ -45,24 +45,26 @@ if not fpath_output:
 	raise ValueError("No filename given for output")
 
 heightmap = imageio.imread(fpath_input).newbyteorder("<")
-dtype = heaghtmap.dtype
+dtype = heightmap.dtype
 itemsize = dtype.itemsize
 signed = not dtype.kind == "u"
 
 shape = heightmap.shape
 (X, Y) = shape
 
-table_size_x, table_size_y = numpy.ceil(X / frag), numpy.ceil(Y / frag)
+table_size_x, table_size_y = int(np.ceil(X / frag)), int(np.ceil(Y / frag))
 table_size = table_size_x * table_size_y
-table = numpy.zeros(table_size, dtype=numpy.uint32.newbyteorder("<"))
+table = np.zeros(table_size, dtype=np.uint32).newbyteorder("<")
 data = b''
 i = 0
 for x in range(0, X, frag):
 	for y in range(0, Y, frag):
 		part = heightmap[x:x+frag,y:y+frag]
 		part_data = part.tobytes()
-		data += zlib.compress(bytes, 9)
+		data += zlib.compress(part_data, 9)
 		table[i] = len(data)
+		i += 1
+
 data_table = zlib.compress(table.tobytes(), 9)
 
 table_length = len(data_table)
@@ -72,8 +74,8 @@ table_length = len(data_table)
 # 	0-4	"IMGEN"
 # 	5	Bytes per point (+16 if signed)
 # 	6-7	Fragmentation
-# 	8-9	Horizontal size
-# 	10-11	Vertical size
+# 	8-9	Horizontal size in px
+# 	10-11	Vertical size in px
 # 	12-15	length of table
 # TABLE:
 #	4-bytes address of every chunk, zlib compressed
@@ -84,12 +86,7 @@ table_length = len(data_table)
 #		...
 #	...
 
-header = b'IMGEN'
-	+ numpy.uint8(itemsize+signed*16).newbyteorder("<").tobytes()
-	+ numpy.uint16(frag).newbyteorder("<").tobytes()
-	+ numpy.uint16(table_size_x).newbyteorder("<").tobytes()
-	+ numpy.uint16(table_size_y).newbyteorder("<").tobytes()
-	+ numpy.uint32(table_length).newbyteorder("<").tobytes()
+header = b'IMGEN' + np.uint8(itemsize+signed*16).newbyteorder("<").tobytes() + np.uint16(frag).newbyteorder("<").tobytes() + np.uint16(X).newbyteorder("<").tobytes() + np.uint16(Y).newbyteorder("<").tobytes() + np.uint32(table_length).newbyteorder("<").tobytes()
 
 file_output = open(fpath_output, "wb")
 file_output.write(header + data_table + data)
