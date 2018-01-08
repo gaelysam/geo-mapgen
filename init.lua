@@ -96,7 +96,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		for y = minp.y, math.max(h, 0) do
 			local node
 			if h - y < 3 then
-				if h == y then
+				if h == y and y >= 0 then
 					node = c_lawn
 				elseif y > h then
 					node = c_water
