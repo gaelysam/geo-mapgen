@@ -64,7 +64,7 @@ local function displaytime(time)
 end
 
 minetest.register_on_generated(function(minp, maxp, seed)
-	print("[imgen] Generating from " .. minetest.pos_to_string(minp) .. " to " .. minetest.pos_to_string(maxp))
+	print("[geo_mapgen] Generating from " .. minetest.pos_to_string(minp) .. " to " .. minetest.pos_to_string(maxp))
 	local t0 = os.clock()
 
 	local c_stone = minetest.get_content_id("default:stone")
@@ -88,7 +88,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 		local nchunk = math.floor(x / frag) + math.floor(-z / frag) * chunks_x + 1
 		if not chunks[nchunk] then
-			print("[imgen]   Loading chunk " .. nchunk)
+			print("[geo_mapgen]   Loading chunk " .. nchunk)
 			local t1 = os.clock()
 
 			local address_min = index[nchunk-1] -- inclusive
@@ -100,7 +100,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			chunks_delay[nchunk] = remove_delay
 			
 			local t2 = os.clock()
-			print("[imgen]   Loaded chunk " .. nchunk .. " in " .. displaytime(t2-t1))
+			print("[geo_mapgen]   Loaded chunk " .. nchunk .. " in " .. displaytime(t2-t1))
 		end
 
 		local xpx = x % frag
@@ -148,8 +148,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 	local t3 = os.clock()
 	local time = t3 - t0
-	print("[imgen] Mapgen finished in " .. displaytime(time))
-	print("[imgen] Cached chunks: " .. chunk_count)
+	print("[geo_mapgen] Mapgen finished in " .. displaytime(time))
+	print("[geo_mapgen] Cached chunks: " .. chunk_count)
 
 	mapgens = mapgens + 1
 	time_sum = time_sum + time
@@ -157,9 +157,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 end)
 
 minetest.register_on_shutdown(function()
-	print("[imgen] Mapgen calls: " .. mapgens)
+	print("[geo_mapgen] Mapgen calls: " .. mapgens)
 	local average = time_sum / mapgens
-	print("[imgen] Average time: " .. displaytime(average))
+	print("[geo_mapgen] Average time: " .. displaytime(average))
 	local stdev = math.sqrt(time_sum2 / mapgens - average ^ 2)
-	print("[imgen] Standard dev: " .. displaytime(stdev))
+	print("[geo_mapgen] Standard dev: " .. displaytime(stdev))
 end)
