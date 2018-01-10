@@ -6,23 +6,25 @@ It is somewhat like [realterrain](https://forum.minetest.net/viewtopic.php?f=11&
 ## Usage
 You must first convert the DEM image into a database, using the python script `image_convert.py` provided by this mod. You need a working Python installation, with libraries `numpy` and `imageio`.
 
-The database should be placed in the world directory and named `heightmap.dat`.
+This will generate 2 files in the world directory: `heightmap.dat` which is the database, and `heightmap.dat.conf`, configuration file working with the database.
 
 Syntax for the Python script:
 ```
-image_convert.py input_file.tif output_file.dat [-f fragmentation]
+image_convert.py input_file.tif minetest_world_directory [-f fragmentation] [-s scale]
 ```
 Note that even if TIFF files are the most commonly used, any image with only one color channel can be loaded by this script.
 
 In the database, the image is cut into squares with a fixed size (usually 80 px) to make data searching faster. If you want a different size, you can specify it with `-f`.
 
+Scale is the number of real meters per node, vertically (by default 40).
+
 Example of use:
 ```
-./image_convert.py '/home/gael/dem/srtm_38_04.tif' '/home/gael/.minetest/worlds/bidule/heightmap.dat' -f 100
+./image_convert.py '/home/gael/dem/srtm_38_04.tif' '/home/gael/.minetest/worlds/bidule/heightmap.dat' -f 100 -s 90
 ```
 The conversion may take several minutes.
 
-Once the heightmap.dat file is in the world dir, you can start playing.
+Once the files are generated, you can start playing.
 
 ## Additional information
 Distributed under the GNU Lesser General Public License, version 2.1.

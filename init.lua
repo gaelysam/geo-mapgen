@@ -1,8 +1,10 @@
 local path = "heightmap.dat"
+local conf_path = "heightmap.dat.conf"
 
 file = io.open(minetest.get_worldpath() .. "/" .. path)
+local conf = Settings(minetest.get_worldpath() .. "/" .. conf_path)
 
-local vertical_ratio = 40
+local scale = conf:get("scale") or 40
 local remove_delay = 10
 
 local function parse(str, signed) -- little endian
@@ -19,8 +21,8 @@ local function parse(str, signed) -- little endian
 	return n
 end
 
-if file:read(5) ~= "IMGEN" then
-	print('WARNING: file may not be in the appropriate format. Signature "IMGEN" not recognized.')
+if file:read(5) ~= "GEOMG" then
+	print('WARNING: file may not be in the appropriate format. Signature "GEOMG" not recognized.')
 end
 
 local itemsize_raw = parse(file:read(1))
@@ -107,7 +109,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		local zpx = -z % frag
 		local npx = xpx + zpx * frag + 1
 
-		local h = math.floor(parse(chunks[nchunk]:sub((npx-1)*itemsize + 1, npx*itemsize), signed) / vertical_ratio)
+		local h = math.floor(parse(chunks[nchunk]:sub((npx-1)*itemsize + 1, npx*itemsize), signed) / scale)
 
 		for y = minp.y, math.min(math.max(h, 0), maxp.y) do
 			local node

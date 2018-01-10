@@ -12,6 +12,7 @@ n_args = len(sys.argv)
 i = 1
 n = 1
 frag = 80
+scale = 40.
 while i < n_args:
 	arg = sys.argv[i]
 	if len(arg) == 0:
@@ -21,6 +22,12 @@ while i < n_args:
 		l = arg[1]
 		if l == "f":
 			frag = int(sys.argv[i+1])
+			i += 2
+			continue
+		if l == "s":
+			scale = float(sys.argv[i+1])
+			i += 2
+			continue
 		if l == "i":
 			fpath_input = sys.argv[i+1]
 			i += 2
@@ -43,6 +50,9 @@ if not fpath_input:
 
 if not fpath_output:
 	raise ValueError("No filename given for output")
+
+fpath_output += "/heightmap.dat"
+fpath_conf = fpath_output + ".conf"
 
 heightmap = imageio.imread(fpath_input).newbyteorder("<")
 dtype = heightmap.dtype
@@ -86,8 +96,12 @@ table_length = len(data_table)
 #		...
 #	...
 
-header = b'IMGEN' + np.uint8(itemsize+signed*16).newbyteorder("<").tobytes() + np.uint16(frag).newbyteorder("<").tobytes() + np.uint16(X).newbyteorder("<").tobytes() + np.uint16(Y).newbyteorder("<").tobytes() + np.uint32(table_length).newbyteorder("<").tobytes()
+header = b'GEOMG' + np.uint8(itemsize+signed*16).newbyteorder("<").tobytes() + np.uint16(frag).newbyteorder("<").tobytes() + np.uint16(X).newbyteorder("<").tobytes() + np.uint16(Y).newbyteorder("<").tobytes() + np.uint32(table_length).newbyteorder("<").tobytes()
 
 file_output = open(fpath_output, "wb")
 file_output.write(header + data_table + data)
 file_output.close()
+
+file_conf = open(fpath_conf, "w")
+file_conf.write("scale = " + str(scale))
+file_conf.close()
