@@ -20,7 +20,7 @@ Scale is the number of real meters per node, vertically (by default 40).
 
 Example of use:
 ```
-./image_convert.py '/home/gael/dem/srtm_38_04.tif' '/home/gael/.minetest/worlds/bidule/heightmap.dat' -f 100 -s 90
+./image_convert.py '/home/gael/dem/srtm_38_04.tif' '/home/gael/.minetest/worlds/bidule' -f 100 -s 90
 ```
 The conversion may take several minutes.
 
