@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import imageio
 import zlib
+import io
 
 fpath_input = None
 fpath_output = None
@@ -65,14 +66,15 @@ shape = heightmap.shape
 table_size_x, table_size_y = int(np.ceil(X / frag)), int(np.ceil(Y / frag))
 table_size = table_size_x * table_size_y
 table = np.zeros(table_size, dtype=np.uint32).newbyteorder("<")
-data = b''
+data = io.BytesIO()
 i = 0
+n = 0
 for y in range(0, Y, frag):
 	for x in range(0, X, frag):
 		part = heightmap[y:y+frag,x:x+frag]
 		part_data = part.tobytes()
-		data += zlib.compress(part_data, 9)
-		table[i] = len(data)
+		n += data.write(zlib.compress(part_data, 9))
+		table[i] = n
 		i += 1
 
 data_table = zlib.compress(table.tobytes(), 9)
@@ -99,7 +101,7 @@ table_length = len(data_table)
 header = b'GEOMG' + np.uint8(itemsize+signed*16).newbyteorder("<").tobytes() + np.uint16(frag).newbyteorder("<").tobytes() + np.uint16(X).newbyteorder("<").tobytes() + np.uint16(Y).newbyteorder("<").tobytes() + np.uint32(table_length).newbyteorder("<").tobytes()
 
 file_output = open(fpath_output, "wb")
-file_output.write(header + data_table + data)
+file_output.write(header + data_table + data.getbuffer())
 file_output.close()
 
 file_conf = open(fpath_conf, "w")
