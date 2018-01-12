@@ -39,6 +39,8 @@ local Z = parse(file:read(2))
 local chunks_x = math.ceil(X / frag)
 local chunks_z = math.ceil(Z / frag)
 
+local last_chunk_length = (X-1) % frag + 1 -- Needed for incrementing index because last chunk may be truncated in length and therefore need an unusual increment
+
 local index_length = parse(file:read(4))
 local index_raw = minetest.decompress(file:read(index_length)) -- Called index instead of table to avoid name conflicts
 local index = {[0] = 0}
@@ -75,8 +77,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_water = minetest.get_content_id("default:water_source")
 
 	local xmin = math.max(minp.x, 0)
-	local xmax = math.min(maxp.x, X)
-	local zmin = math.max(minp.z, -Z) -- Reverse Z coordinates
+	local xmax = math.min(maxp.x, X-1)
+	local zmin = math.max(minp.z, -Z+1) -- Reverse Z coordinates
 	local zmax = math.min(maxp.z, 0)
 
 	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
@@ -88,7 +90,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	for z = zmin, zmax do
 		local ivm = a:index(x, minp.y, z)
 
-		local nchunk = math.floor(x / frag) + math.floor(-z / frag) * chunks_x + 1
+		local xchunk = math.floor(x / frag)
+		local zchunk = math.floor(-z / frag)
+		local nchunk = xchunk + zchunk * chunks_x + 1
 		if not chunks[nchunk] then
 			print("[geo_mapgen]   Loading chunk " .. nchunk)
 			local t1 = os.clock()
@@ -105,9 +109,13 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			print("[geo_mapgen]   Loaded chunk " .. nchunk .. " in " .. displaytime(t2-t1))
 		end
 
+		local increment = frag
+		if xchunk + 1 == chunks_x then -- Last chunk of the line: may be truncated, that would change the line increment.
+			increment = last_chunk_length
+		end
 		local xpx = x % frag
 		local zpx = -z % frag
-		local npx = xpx + zpx * frag + 1
+		local npx = xpx + zpx * increment + 1 -- Increment is used here
 
 		local h = math.floor(parse(chunks[nchunk]:sub((npx-1)*itemsize + 1, npx*itemsize), signed) / scale)
 

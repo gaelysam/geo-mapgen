@@ -60,16 +60,16 @@ itemsize = dtype.itemsize
 signed = not dtype.kind == "u"
 
 shape = heightmap.shape
-(X, Y) = shape
+(Y, X) = shape
 
 table_size_x, table_size_y = int(np.ceil(X / frag)), int(np.ceil(Y / frag))
 table_size = table_size_x * table_size_y
 table = np.zeros(table_size, dtype=np.uint32).newbyteorder("<")
 data = b''
 i = 0
-for x in range(0, X, frag):
-	for y in range(0, Y, frag):
-		part = heightmap[x:x+frag,y:y+frag]
+for y in range(0, Y, frag):
+	for x in range(0, X, frag):
+		part = heightmap[y:y+frag,x:x+frag]
 		part_data = part.tobytes()
 		data += zlib.compress(part_data, 9)
 		table[i] = len(data)
