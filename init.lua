@@ -50,8 +50,31 @@ end
 
 local offset = file:seek() -- Position of first data chunk
 
-local chunks = {}
 local chunks_delay = {}
+local chunks = {delay=chunks_delay}
+
+local function displaytime(time)
+	return math.floor(time * 1000000 + 0.5) / 1000 .. " ms"
+end
+
+local function load_chunk(chunklist, n)
+	print("[geo_mapgen]   Loading chunk " .. n)
+	local t1 = os.clock()
+
+	local address_min = index[n-1] -- inclusive
+	local address_max = index[n] -- exclusive
+	local count = address_max - address_min
+	file:seek("set", offset + address_min)
+	local data_raw = minetest.decompress(file:read(count))
+	chunklist[n] = data_raw
+	chunklist.delay[n] = remove_delay
+	
+	local t2 = os.clock()
+	print("[geo_mapgen]   Loaded chunk " .. n .. " in " .. displaytime(t2-t1))
+	return data_raw
+end
+
+setmetatable(chunks, {__index = load_chunk})
 
 local data = {}
 
@@ -62,10 +85,6 @@ end)
 local mapgens = 0
 local time_sum = 0
 local time_sum2 = 0
-
-local function displaytime(time)
-	return math.floor(time * 1000000 + 0.5) / 1000 .. " ms"
-end
 
 minetest.register_on_generated(function(minp, maxp, seed)
 	print("[geo_mapgen] Generating from " .. minetest.pos_to_string(minp) .. " to " .. minetest.pos_to_string(maxp))
@@ -93,22 +112,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		local xchunk = math.floor(x / frag)
 		local zchunk = math.floor(-z / frag)
 		local nchunk = xchunk + zchunk * chunks_x + 1
-		if not chunks[nchunk] then
-			print("[geo_mapgen]   Loading chunk " .. nchunk)
-			local t1 = os.clock()
-
-			local address_min = index[nchunk-1] -- inclusive
-			local address_max = index[nchunk] -- exclusive
-			local count = address_max - address_min
-			file:seek("set", offset + address_min)
-			local data_raw = minetest.decompress(file:read(count))
-			chunks[nchunk] = data_raw
-			chunks_delay[nchunk] = remove_delay
-			
-			local t2 = os.clock()
-			print("[geo_mapgen]   Loaded chunk " .. nchunk .. " in " .. displaytime(t2-t1))
-		end
-
+		
 		local increment = frag
 		if xchunk + 1 == chunks_x then -- Last chunk of the line: may be truncated, that would change the line increment.
 			increment = last_chunk_length
