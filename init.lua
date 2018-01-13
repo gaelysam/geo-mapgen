@@ -22,17 +22,12 @@ local function parse(str, signed) -- little endian
 end
 
 if file:read(5) ~= "GEOMG" then
-	print('WARNING: file may not be in the appropriate format. Signature "GEOMG" not recognized.')
+	print('[geo_mapgen] WARNING: file may not be in the appropriate format. Signature "GEOMG" not recognized.')
 end
 
-local itemsize_raw = parse(file:read(1))
-local signed = false
-local itemsize = itemsize_raw
-if itemsize >= 16 then
-	signed = true
-	itemsize = itemsize_raw - 16
-end
+local version = parse(file:read(1))
 
+-- Geometry stuff
 local frag = parse(file:read(2))
 local X = parse(file:read(2))
 local Z = parse(file:read(2))
@@ -41,40 +36,77 @@ local chunks_z = math.ceil(Z / frag)
 
 local last_chunk_length = (X-1) % frag + 1 -- Needed for incrementing index because last chunk may be truncated in length and therefore need an unusual increment
 
-local index_length = parse(file:read(4))
-local index_raw = minetest.decompress(file:read(index_length)) -- Called index instead of table to avoid name conflicts
-local index = {[0] = 0}
-for i=1, #index_raw / 4 do
-	index[i] = parse(index_raw:sub(i*4-3, i*4))
-end
-
-local offset = file:seek() -- Position of first data chunk
-
-local chunks_delay = {}
-local chunks = {delay=chunks_delay}
-
 local function displaytime(time)
 	return math.floor(time * 1000000 + 0.5) / 1000 .. " ms"
 end
 
-local function load_chunk(chunklist, n)
+-- Metatables
+local function load_chunk(layer, n)
 	print("[geo_mapgen]   Loading chunk " .. n)
 	local t1 = os.clock()
 
+	local index = layer.index
 	local address_min = index[n-1] -- inclusive
 	local address_max = index[n] -- exclusive
 	local count = address_max - address_min
-	file:seek("set", offset + address_min)
+	file:seek("set", layer.offset + address_min)
 	local data_raw = minetest.decompress(file:read(count))
-	chunklist[n] = data_raw
-	chunklist.delay[n] = remove_delay
+	layer[n] = data_raw
+	layer.delay[n] = remove_delay
 	
 	local t2 = os.clock()
 	print("[geo_mapgen]   Loaded chunk " .. n .. " in " .. displaytime(t2-t1))
 	return data_raw
 end
 
-setmetatable(chunks, {__index = load_chunk})
+local mt = {__index = load_chunk}
+
+local delays = {}
+
+local heightmap = nil
+
+-- Layers
+local layers = {}
+local layer_count = parse(file:read(1))
+for l=1, layer_count do
+	local datatype = parse(file:read(1))
+	local itemsize_raw = parse(file:read(1))
+	local signed = false
+	local itemsize = itemsize_raw
+	if itemsize >= 16 then
+		signed = true
+		itemsize = itemsize_raw - 16
+	end
+
+	local index_length = parse(file:read(4))
+	local index_raw = minetest.decompress(file:read(index_length)) -- Called index instead of table to avoid name conflicts
+	local index = {[0] = 0}
+	for i=1, #index_raw / 4 do
+		index[i] = parse(index_raw:sub(i*4-3, i*4))
+	end
+
+	local delay = {}
+	delays[l] = delay
+
+	local layer = {
+		delay = delay,
+		offset = file:seek(), -- Position of first data
+		itemsize = itemsize,
+		signed = signed,
+		index = index,
+	}
+
+	delay.data = layer
+
+	setmetatable(layer, mt)
+
+	if datatype == 0 then
+		heightmap = layer
+	end
+
+	local data_size = index[#index]
+	file:seek("cur", data_size) -- Skip data and go to the position of the next layer
+end
 
 local data = {}
 
@@ -85,6 +117,11 @@ end)
 local mapgens = 0
 local time_sum = 0
 local time_sum2 = 0
+
+local function value(layer, nchunk, n)
+	local itemsize = layer.itemsize
+	return parse(layer[nchunk]:sub((n-1)*itemsize + 1, n*itemsize), layer.signed)
+end
 
 minetest.register_on_generated(function(minp, maxp, seed)
 	print("[geo_mapgen] Generating from " .. minetest.pos_to_string(minp) .. " to " .. minetest.pos_to_string(maxp))
@@ -121,7 +158,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		local zpx = -z % frag
 		local npx = xpx + zpx * increment + 1 -- Increment is used here
 
-		local h = math.floor(parse(chunks[nchunk]:sub((npx-1)*itemsize + 1, npx*itemsize), signed) / scale)
+		local h = math.floor(value(heightmap, nchunk, npx) / scale)
 
 		for y = minp.y, math.min(math.max(h, 0), maxp.y) do
 			local node
@@ -148,22 +185,24 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	vm:update_liquids()
 	vm:write_to_map()
 
-	local chunk_count = 0
 	-- Decrease delay, remove chunks from cache when time is over
-	for n, delay in pairs(chunks_delay) do
-		if delay <= 1 then
-			chunks[n] = nil
-			chunks_delay[n] = nil
-		else
-			chunks_delay[n] = delay - 1
-			chunk_count = chunk_count + 1
+	for _, layer_delays in ipairs(delays) do
+		for n, delay in pairs(layer_delays) do
+			if n ~= "data" then -- avoid the "data" field!
+				if delay <= 1 then
+					layer_delays[n] = nil
+					layer_delays.data[n] = nil -- layer_delays.data is the layer itself
+					print("[geo_mapgen]   Uncaching chunk " .. n)
+				else
+					layer_delays[n] = delay - 1
+				end
+			end
 		end
 	end
 
 	local t3 = os.clock()
 	local time = t3 - t0
 	print("[geo_mapgen] Mapgen finished in " .. displaytime(time))
-	print("[geo_mapgen] Cached chunks: " .. chunk_count)
 
 	mapgens = mapgens + 1
 	time_sum = time_sum + time

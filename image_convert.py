@@ -6,6 +6,9 @@ import imageio
 import zlib
 import io
 
+version = b'\x00'
+
+# Deal with argv
 fpath_input = None
 fpath_output = None
 
@@ -46,6 +49,7 @@ while i < n_args:
 			n += 1
 	i += 1
 
+# File paths stuff
 if not fpath_input:
 	raise ValueError("No filename given for input")
 
@@ -55,53 +59,78 @@ if not fpath_output:
 fpath_output += "/heightmap.dat"
 fpath_conf = fpath_output + ".conf"
 
+# Load the first file
 heightmap = imageio.imread(fpath_input).newbyteorder("<")
-dtype = heightmap.dtype
-itemsize = dtype.itemsize
-signed = not dtype.kind == "u"
+(Y, X) = heightmap.shape
 
-shape = heightmap.shape
-(Y, X) = shape
-
+# Geometry stuff
 table_size_x, table_size_y = int(np.ceil(X / frag)), int(np.ceil(Y / frag))
 table_size = table_size_x * table_size_y
-table = np.zeros(table_size, dtype=np.uint32).newbyteorder("<")
+
+layer_count = 1
+
+# Binary conversion stuff
+def s(n):
+	return n.newbyteorder("<").tobytes()
+
+# Data tables
 data = io.BytesIO()
-i = 0
-n = 0
-for y in range(0, Y, frag):
-	for x in range(0, X, frag):
-		part = heightmap[y:y+frag,x:x+frag]
-		part_data = part.tobytes()
-		n += data.write(zlib.compress(part_data, 9))
-		table[i] = n
-		i += 1
+header = b'GEOMG' + version + s(np.uint16(frag)) + s(np.uint16(X)) + s(np.uint16(Y)) + s(np.uint8(layer_count))
+data.write(header)
 
-data_table = zlib.compress(table.tobytes(), 9)
+def layer(datamap):
+	dtype = datamap.dtype
+	itemsize = dtype.itemsize
+	signed = not dtype.kind == "u"
 
-table_length = len(data_table)
+	layer_table = np.zeros(table_size, dtype=np.uint32).newbyteorder("<")
+	layer_data = io.BytesIO()
+	i = 0
+	n = 0
+	for y in range(0, Y, frag):
+		for x in range(0, X, frag):
+			part = datamap[y:y+frag,x:x+frag]
+			part_raw = part.tobytes()
+			n += layer_data.write(zlib.compress(part_raw, 9))
+			layer_table[i] = n
+			i += 1
+
+	layer_table_raw = zlib.compress(layer_table.tobytes(), 9)
+	table_length = len(layer_table_raw)
+	layer_header = s(np.uint8(0)) + s(np.uint8(itemsize+signed*16)) + s(np.uint32(table_length))
+
+	data.write(layer_header)
+	data.write(layer_table_raw)
+	data.write(layer_data.getbuffer())
+
+layer(heightmap)
 
 # File structure: (all is little endian)
 # HEADER:
-# 	0-4	"IMGEN"
-# 	5	Bytes per point (+16 if signed)
+# 	0-4	"GEOMG"
+# 	5	Version
 # 	6-7	Fragmentation
 # 	8-9	Horizontal size in px
 # 	10-11	Vertical size in px
-# 	12-15	length of table
-# TABLE:
-#	4-bytes address of every chunk, zlib compressed
-# DATA:
-#	chunk1:
-#		raw data, bytes per pixel depend on 'itemsize'
-#	chunk2:
+#	12	Number of layers
+# LAYER1:
+#	HEADER:
+#		0	Data type
+#		1	Bytes per point (+16 if signed)
+#		2-5	Length of table
+#	TABLE:
+#		4-bytes address of every chunk, zlib compressed
+#	DATA:
+#		chunk1:
+#			raw data, bytes per pixel depend on 'itemsize'
+#		chunk2:
+#			...
 #		...
+# LAYER2:
 #	...
 
-header = b'GEOMG' + np.uint8(itemsize+signed*16).newbyteorder("<").tobytes() + np.uint16(frag).newbyteorder("<").tobytes() + np.uint16(X).newbyteorder("<").tobytes() + np.uint16(Y).newbyteorder("<").tobytes() + np.uint32(table_length).newbyteorder("<").tobytes()
-
 file_output = open(fpath_output, "wb")
-file_output.write(header + data_table + data.getbuffer())
+file_output.write(data.getbuffer())
 file_output.close()
 
 file_conf = open(fpath_conf, "w")
