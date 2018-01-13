@@ -10,15 +10,17 @@ This will generate 2 files in the world directory: `heightmap.dat` which is the 
 
 Syntax for the Python script:
 ```
-image_convert.py input_file.tif minetest_world_directory [-f fragmentation] [-s scale]
+image_convert.py input_file.tif minetest_world_directory [options]
 ```
 Note that even if TIFF files are the most commonly used, any image with only one color channel can be loaded by this script.
 
-In the database, the image is cut into squares with a fixed size (usually 80 px) to make data searching faster. If you want a different size, you can specify it with `-f`.
+### Complete list of options:
+- `-f [integer]`: Fragmentation. In the database, the image is cut into squares with a fixed size (by default 80 px) to make data searching faster.
+- `-s [float]`: Vertical scale, number of meters per node (default is 40). Can also be adjusted in the configuration file `heightmap.dat.conf`.
+- `-r [integer|filepath]`: Enable rivers. If integer, minimal surface for catchment area, to produce a river (usually some thousands). If filepath to an image, this image is read and river is set where value > 0.
+- `-c [float]`: Coefficient describing the increase of river width (default to 0.25). At 1, river width is proportional to its catchment area; at 0, rivers are all one block wide.
 
-Scale is the number of real meters per node, vertically (by default 40).
-
-Example of use:
+### Example of use:
 ```
 ./image_convert.py '/home/gael/dem/srtm_38_04.tif' '/home/gael/.minetest/worlds/bidule' -f 100 -s 90
 ```

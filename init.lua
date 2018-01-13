@@ -64,6 +64,8 @@ local mt = {__index = load_chunk} -- Metatable that will allow to load chunks on
 local delays = {} -- Will be a list of delay tables. A delay table is a table that contains the delay before unload of every loaded chunk.
 
 local heightmap = nil
+local rivermap = nil
+local rivers = false
 
 -- Layers
 local layers = {}
@@ -102,6 +104,9 @@ for l=1, layer_count do
 
 	if datatype == 0 then -- Code for heightmap
 		heightmap = layer
+	elseif datatype == 1 then
+		rivermap = layer
+		rivers = true
 	end
 
 	local data_size = index[#index]
@@ -133,6 +138,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_dirt = minetest.get_content_id("default:dirt")
 	local c_lawn = minetest.get_content_id("default:dirt_with_grass")
 	local c_water = minetest.get_content_id("default:water_source")
+	local c_rwater = minetest.get_content_id("default:river_water_source")
 
 	local xmin = math.max(minp.x, 0)
 	local xmax = math.min(maxp.x, X-1)
@@ -161,12 +167,17 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		local npx = xpx + zpx * increment + 1 -- Increment is used here
 
 		local h = math.floor(value(heightmap, nchunk, npx) / scale)
+		local river_here = value(rivermap, nchunk, npx) > 0
 
 		for y = minp.y, math.min(math.max(h, 0), maxp.y) do
 			local node
 			if h - y < 3 then
 				if h == y and y >= 0 then
-					node = c_lawn
+					if river_here then
+						node = c_rwater
+					else
+						node = c_lawn
+					end
 				elseif y > h then
 					node = c_water
 				else
