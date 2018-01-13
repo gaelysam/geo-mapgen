@@ -93,16 +93,13 @@ heightmap = imageio.imread(fpath_input).newbyteorder("<")
 table_size_x, table_size_y = int(np.ceil(X / frag)), int(np.ceil(Y / frag))
 table_size = table_size_x * table_size_y
 
-layer_count = 1
+layer_count = 0
+
+data = io.BytesIO() # This allows faster concatenation
 
 # Binary conversion stuff
 def s(n):
 	return n.newbyteorder("<").tobytes()
-
-# Data tables
-data = io.BytesIO() # This allows faster concatenation
-header = b'GEOMG' + version + s(np.uint16(frag)) + s(np.uint16(X)) + s(np.uint16(Y)) + s(np.uint8(layer_count))
-data.write(header)
 
 def layer(datamap): # Add a layer
 	dtype = datamap.dtype
@@ -130,11 +127,17 @@ def layer(datamap): # Add a layer
 	data.write(layer_table_raw)
 	data.write(layer_data.getbuffer())
 
+	global layer_count
+	layer_count += 1
+
 layer(heightmap)
+
+# Build file header
+header = b'GEOMG' + version + s(np.uint16(frag)) + s(np.uint16(X)) + s(np.uint16(Y)) + s(np.uint8(layer_count))
 
 # Write in files
 file_output = open(fpath_output, "wb")
-file_output.write(data.getbuffer())
+file_output.write(header + data.getbuffer())
 file_output.close()
 
 file_conf = open(fpath_conf, "w")
