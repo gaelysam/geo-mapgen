@@ -101,7 +101,7 @@ data = io.BytesIO() # This allows faster concatenation
 def s(n):
 	return n.newbyteorder("<").tobytes()
 
-def layer(datamap): # Add a layer
+def layer(datamap, datatype): # Add a layer
 	dtype = datamap.dtype
 	itemsize = dtype.itemsize
 	signed = not dtype.kind == "u"
@@ -120,7 +120,7 @@ def layer(datamap): # Add a layer
 
 	layer_table_raw = zlib.compress(layer_table.tobytes(), 9) # Compress the table too
 	table_length = len(layer_table_raw)
-	layer_header = s(np.uint8(0)) + s(np.uint8(itemsize+signed*16)) + s(np.uint32(table_length))
+	layer_header = s(np.uint8(datatype)) + s(np.uint8(itemsize+signed*16)) + s(np.uint32(table_length))
 
 	# Add this to the main binary
 	data.write(layer_header)
@@ -130,7 +130,7 @@ def layer(datamap): # Add a layer
 	global layer_count
 	layer_count += 1
 
-layer(heightmap)
+layer(heightmap, 0)
 
 # Build file header
 header = b'GEOMG' + version + s(np.uint16(frag)) + s(np.uint16(X)) + s(np.uint16(Y)) + s(np.uint8(layer_count))
