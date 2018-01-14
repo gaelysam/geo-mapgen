@@ -49,6 +49,7 @@ fpath_rivers = None
 river_limit = 1000
 coefficient = 0.25 # When water quantity is multiplied by t, river width is multiplied by t ^ coefficient
 sea_level = -128
+max_river_hdiff = 40
 while i < n_args:
 	arg = sys.argv[i]
 	if len(arg) == 0:
@@ -79,6 +80,10 @@ while i < n_args:
 			continue
 		if l == "c":
 			coefficient = float(sys.argv[i+1])
+			i += 2
+			continue
+		if l == "d":
+			max_river_hdiff = int(sys.argv[i+1])
 			i += 2
 			continue
 		if l == "i":
@@ -244,11 +249,26 @@ if rivers:
 			process_neighbors(t[1], t[2])
 
 		visited = None
-		heightmap = None
 
 		print("Calculating water quantity")
 
 		waterq = np.ones((Y, X))
+		river_array = np.zeros((Y, X), dtype=bool)
+
+		def draw_river(x, y, q):
+			if q >= river_limit:
+				rsize = int((q / river_limit)**coefficient)
+				if rsize > 1:
+					hmax = heightmap[y,x] + max_river_hdiff
+					rsize -= 1
+					xmin = max(x-rsize, 0)
+					xmax = min(x+rsize+1, X)
+					ymin = max(y-rsize, 0)
+					ymax = min(y+rsize+1,Y)
+					river_array[y,xmin:xmax] += heightmap[y,xmin:xmax] <= hmax
+					river_array[ymin:ymax,x] += heightmap[ymin:ymax,x] <= hmax
+				else:
+					river_array[y,x] = True
 
 		def set_water(y, x):
 			water = 1
@@ -266,6 +286,9 @@ if rivers:
 			if dirs % 2 == 1:
 				water += set_water(y+1, x)
 			waterq[y, x] = water
+
+			if water >= river_limit:
+				draw_river(x, y, water)
 			return water
 
 		maxwater = 0
@@ -278,23 +301,6 @@ if rivers:
 
 		flow_dirs = None
 
-		river_array = np.zeros((Y, X), dtype=bool)
-
-		for x in range(X):
-			for y in range(Y):
-				q = waterq[y,x]
-				if q >= river_limit:
-					rsize = int((q / river_limit)**coefficient)
-					if rsize > 1:
-						rsize -= 1
-						xmin = max(x-rsize, 0)
-						xmax = min(x+rsize+1, X)
-						ymin = max(y-rsize, 0)
-						ymax = min(y+rsize+1,Y)
-						river_array[y,xmin:xmax] = True
-						river_array[ymin:ymax,x] = True
-					else:
-						river_array[y,x] = True
 	layer(river_array, 1)
 
 # Build file header
