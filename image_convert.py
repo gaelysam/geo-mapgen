@@ -185,7 +185,7 @@ if rivers:
 					continue
 				to_explore += 1
 				if to_explore % 1000000 == 0:
-					print("Found", str(to_explore // 1000000), "millions points to explore")
+					print("Found", str(to_explore // 1000000), "× 10⁶ points to explore")
 				if (heightmap[y, x-1] <= sea_level or heightmap[y, x+1] <= sea_level or heightmap[y-1, x] <= sea_level or heightmap[y+1, x] <= sea_level):
 					add_start_point(y, x)
 
@@ -245,7 +245,7 @@ if rivers:
 			t = heappop(heap)
 			to_explore -= 1
 			if to_explore % 1000000 == 0:
-				print(str(to_explore // 1000000), "million points remaining", "Altitude:", int(t[0]), "Queue:", len(heap))
+				print(str(to_explore // 1000000), "× 10⁶ points remaining", "Altitude:", int(t[0]), "Queue:", len(heap))
 			process_neighbors(t[1], t[2])
 
 		visited = None
