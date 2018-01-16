@@ -113,6 +113,10 @@ if not fpath_output:
 fpath_output += "/heightmap.dat"
 fpath_conf = fpath_output + ".conf"
 
+# Load files at the beginning, so that if a path is wrong, the user will know it instantly.
+file_output = open(fpath_output, "wb")
+file_conf = open(fpath_conf, "w")
+
 # Load the first file
 heightmap = imageio.imread(fpath_input).newbyteorder("<")
 (Y, X) = heightmap.shape
@@ -307,10 +311,8 @@ if rivers:
 header = b'GEOMG' + version + s(np.uint16(frag)) + s(np.uint16(X)) + s(np.uint16(Y)) + s(np.uint8(layer_count))
 
 # Write in files
-file_output = open(fpath_output, "wb")
 file_output.write(header + data.getbuffer())
 file_output.close()
 
-file_conf = open(fpath_conf, "w")
 file_conf.write("scale = " + str(scale))
 file_conf.close()
