@@ -167,7 +167,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		local npx = xpx + zpx * increment + 1 -- Increment is used here
 
 		local h = math.floor(value(heightmap, nchunk, npx) / scale)
-		local river_here = value(rivermap, nchunk, npx) > 0
+
+		local river_here = false
+		if rivers then
+			local river_here = value(rivermap, nchunk, npx) > 0
+		end
 
 		for y = minp.y, math.min(math.max(h, 0), maxp.y) do
 			local node
