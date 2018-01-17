@@ -18,13 +18,15 @@ Note that even if TIFF files are the most commonly used, any image with only one
 - `-f [integer]`: Fragmentation. In the database, the image is cut into squares with a fixed size (by default 80 px) to make data searching faster.
 - `-s [float]`: Vertical scale, number of meters per node (default is 40). Can also be adjusted in the configuration file `heightmap.dat.conf`.
 - `-r [integer|filepath]`: Enable rivers. If integer, minimal surface for catchment area, to produce a river (usually some thousands). If filepath to an image, this image is read and river is set where value > 0.
-- `-c [float]`: Coefficient describing the increase of river width (default to 0.25). At 1, river width is proportional to its catchment area; at 0, rivers are all one block wide.
+- `-l [integer]` Controls the elevation (in meters) below which river are no more calculated. Default to -128.
+- `-c [float]`: Coefficient describing the increase of river width (default to 0.25) when rivers join together. At 1, river width is proportional to its catchment area; at 0, rivers are all one block wide.
+- `-d [integer]`: To avoid wide rives completely filling narrow gorges, limit the width of the river if the valley is deeper than this size (in meters, default is 40)
 
 ### Example of use:
 ```
 ./image_convert.py '/home/gael/dem/srtm_38_04.tif' '/home/gael/.minetest/worlds/bidule' -f 100 -s 90
 ```
-The conversion may take several minutes.
+If you use rivers, the calculation can take a long time (can be over 15 minutes). Please be patient, you can do something else during it's calculating.
 
 Once the files are generated, you can start playing.
 
