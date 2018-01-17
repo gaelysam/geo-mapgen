@@ -105,6 +105,7 @@ for l=1, layer_count do
 	if datatype == 0 then -- Code for heightmap
 		heightmap = layer
 	elseif datatype == 1 then
+		print("Rivermap enabled!")
 		rivermap = layer
 		rivers = true
 	end
@@ -170,7 +171,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 		local river_here = false
 		if rivers then
-			local river_here = value(rivermap, nchunk, npx) > 0
+			river_here = value(rivermap, nchunk, npx) > 0
 		end
 
 		for y = minp.y, math.min(math.max(h, 0), maxp.y) do
