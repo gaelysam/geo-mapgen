@@ -181,33 +181,38 @@ if rivers:
 			start_points.append((heightmap[y, x] + np.random.random(), y, x))
 			visited[y, x] = True
 
-		to_explore = 0
+		def find_start_points(t, x=1, y=1):
+			sy, sx = t.shape
+			if t.all() or not t.any():
+				return
+			if max(sx, sy) == 3:
+				if (not t[1,1]) and (t[0,1] or t[1,0] or t[1,2] or t[2,1]):
+					add_start_point(y,x)
+				return
+			if sx < sy:
+				cut = sy//2
+				find_start_points(t[:cut+1,:], x=x, y=y)
+				find_start_points(t[cut-1:,:], x=x, y=y+cut-1)
+			else:
+				cut = sx//2
+				find_start_points(t[:,:cut+1], x=x, y=y)
+				find_start_points(t[:,cut-1:], x=x+cut-1, y=y)
 
-		for x in range(1, X-1):
-			for y in range(1, Y-1):
-				if heightmap[y, x] <= sea_level:
-					continue
-				to_explore += 1
-				if to_explore % 1000000 == 0:
-					print("Found", str(to_explore // 1000000), "× 10⁶ points to explore")
-				if (heightmap[y, x-1] <= sea_level or heightmap[y, x+1] <= sea_level or heightmap[y-1, x] <= sea_level or heightmap[y+1, x] <= sea_level):
-					add_start_point(y, x)
+		seas = heightmap <= sea_level
+		find_start_points(seas)
 
-		for x in range(X):
-			if heightmap[0, x] > sea_level:
-				add_start_point(0, x)
-				to_explore += 1
-			if heightmap[-1, x] > sea_level:
-				add_start_point(Y-1, x)
-				to_explore += 1
+		to_explore = X * Y - np.count_nonzero(seas)
 
-		for y in range(1, Y-1):
-			if heightmap[y, 0] > sea_level:
-				add_start_point(y, 0)
-				to_explore += 1
-			if heightmap[y, -1] > sea_level:
-				add_start_point(y, X-1)
-				to_explore += 1
+		for x in np.flatnonzero(~seas[0,:]):
+			add_start_point(0, x)
+		for x in np.flatnonzero(~seas[-1,:]):
+			add_start_point(Y-1, x)
+		for y in np.flatnonzero(~seas[1:-1,0]):
+			add_start_point(y, 0)
+		for y in np.flatnonzero(~seas[1:-1,-1]):
+			add_start_point(y, -1)
+
+		del seas
 
 		print("Found", str(len(start_points)), "start points")
 
