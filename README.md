@@ -3,6 +3,8 @@ Geo Mapgen is a (still experimental) mod for [Minetest](https://www.minetest.net
 
 It is somewhat like [realterrain](https://forum.minetest.net/viewtopic.php?f=11&t=12666) but behaves differently: you need to run a separate Python file that transform the image into a database that is directly readable by Minetest. This solution was made to avoid running Lua libraries with Minetest (which is not recommended) or reading directly the image with the Lua API that is not made for that.
 
+![Grand Canyon](https://user-images.githubusercontent.com/6905002/35072311-511f42e2-fbe4-11e7-839d-fbf2140e292a.png)
+
 ## Usage
 You must first convert the DEM image into a database, using the python script `image_convert.py` provided by this mod. You need a working Python installation, with libraries `numpy` and `imageio`.
 
