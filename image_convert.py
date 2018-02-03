@@ -338,6 +338,7 @@ if gui:
 	import tkinter.filedialog as fd
 
 	root = tk.Tk()
+	root.title("Geo Mapgen image converter")
 
 	frame1 = tk.LabelFrame(root, text="I/O files")
 	frame1.pack()
@@ -358,9 +359,9 @@ if gui:
 	tk.Label(frame1, text="Minetest world directory").grid(row=1, column=0, sticky="W")
 
 	def input_button_callback():
-		input_var.set(fd.askopenfilename())
+		input_var.set(fd.askopenfilename(title="Open elevation image"))
 	def output_button_callback():
-		output_var.set(fd.askdirectory())
+		output_var.set(fd.askdirectory(title="Open Minetest world"))
 
 	input_button = tk.Button(frame1, text="Browse", command=input_button_callback)
 	output_button = tk.Button(frame1, text="Browse", command=output_button_callback)
