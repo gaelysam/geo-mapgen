@@ -15,6 +15,8 @@
 #		0	Data type
 #		1	Bytes per point (+16 if signed)
 #		2-5	Length of table
+#		6-7	Length of metadata
+#		METADATA
 #	TABLE:
 #		4-bytes address of every chunk, zlib compressed
 #	DATA:
@@ -32,7 +34,7 @@ import imageio
 import zlib
 import io
 
-version = b'\x00'
+version = b'\x01'
 
 # Deal with argv
 fpath_input = None
@@ -141,7 +143,7 @@ def generate_database():
 	def s(n):
 		return n.newbyteorder("<").tobytes()
 
-	def layer(datamap, datatype): # Add a layer
+	def layer(datamap, datatype, meta=b""): # Add a layer
 		dtype = datamap.dtype
 		itemsize = dtype.itemsize
 		signed = dtype.kind == "i"
@@ -160,7 +162,8 @@ def generate_database():
 
 		layer_table_raw = zlib.compress(layer_table.tobytes(), 9) # Compress the table too
 		table_length = len(layer_table_raw)
-		layer_header = s(np.uint8(datatype)) + s(np.uint8(itemsize+signed*16)) + s(np.uint32(table_length))
+		meta_length = len(meta)
+		layer_header = s(np.uint8(datatype)) + s(np.uint8(itemsize+signed*16)) + s(np.uint32(table_length)) + s(np.uint16(meta_length)) + meta
 
 		# Add this to the main binary
 		data.write(layer_header)

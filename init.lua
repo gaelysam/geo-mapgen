@@ -25,7 +25,7 @@ if file:read(5) ~= "GEOMG" then
 	print('[geo_mapgen] WARNING: file may not be in the appropriate format. Signature "GEOMG" not recognized.')
 end
 
-local version = parse(file:read(1)) -- Not used for now, but will be useful in the future to detect old versions
+local version = parse(file:read(1))
 
 -- Geometry stuff
 local frag = parse(file:read(2))
@@ -71,7 +71,7 @@ local rivers = false
 local layers = {}
 local layer_count = parse(file:read(1))
 for l=1, layer_count do
-	local datatype = parse(file:read(1)) -- Type of data: 0 = heightmap (the only supported for now, but there will be more)
+	local datatype = parse(file:read(1)) -- Type of data: 0 = heightmap, 1 = rivermap
 	local itemsize_raw = parse(file:read(1))
 	local signed = false
 	local itemsize = itemsize_raw
@@ -81,6 +81,12 @@ for l=1, layer_count do
 	end
 
 	local index_length = parse(file:read(4))
+	local meta = ""
+	if version >= 1 then
+		local meta_length = parse(file:read(2))
+		meta = file:read(meta_length)
+	end
+
 	local index_raw = minetest.decompress(file:read(index_length))
 	local index = {[0] = 0} -- Variable is called index instead of table to avoid name conflicts. Will contain a list of the ending position for every chunk, begin at chunk 1, so (unexisting) chunk 0 would end at pos 0. This makes simpler the calculation of chunk size that is index[i] - index[i-1] even for i=1.
 	for i=1, #index_raw / 4 do
@@ -96,6 +102,7 @@ for l=1, layer_count do
 		itemsize = itemsize,
 		signed = signed,
 		index = index,
+		meta = meta,
 	}
 
 	delay.data = layer -- Reference layer in delay table
