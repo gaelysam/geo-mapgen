@@ -40,10 +40,23 @@ local function displaytime(time)
 	return math.floor(time * 1000000 + 0.5) / 1000 .. " ms"
 end
 
+local with_time = false
+local timer_prepare, timer_noise, timer_data, timer_write, timer_cleaning, timer_total
+if TimeStats then
+	timer_prepare = TimeStats("Mapgen preparation", true)
+	timer_load = TimeStats("Chunks loading", true)
+	timer_data = TimeStats("Data collecting", true)
+	timer_write = TimeStats("Data writing", true)
+	timer_cleaning = TimeStats("Cleaning chunks", true)
+	timer_total = TimeStats("Mapgen", true)
+	with_time = true
+end
+
 -- Metatables
 local function load_chunk(layer, n)
-	print("[geo_mapgen]   Loading chunk " .. n)
-	local t1 = os.clock()
+	if with_time then
+		timer_load:resume()
+	end
 
 	local index = layer.index
 	local address_min = index[n-1] -- inclusive
@@ -54,8 +67,9 @@ local function load_chunk(layer, n)
 	layer[n] = data_raw -- Put raw data in table
 	layer.delay[n] = remove_delay -- Set delay for this chunk
 	
-	local t2 = os.clock()
-	print("[geo_mapgen]   Loaded chunk " .. n .. " in " .. displaytime(t2-t1))
+	if with_time then
+		timer_load:pause()
+	end
 	return data_raw
 end
 
@@ -127,11 +141,6 @@ minetest.register_on_mapgen_init(function(mgparams)
 	minetest.set_mapgen_params({mgname="singlenode", flags="nolight"})
 end)
 
--- Timing stuff
-local mapgens = 0
-local time_sum = 0
-local time_sum2 = 0
-
 -- Decode the value of a chunk for a given pixel
 local function value(layer, nchunk, n)
 	local itemsize = layer.itemsize
@@ -140,7 +149,11 @@ end
 
 minetest.register_on_generated(function(minp, maxp, seed)
 	print("[geo_mapgen] Generating from " .. minetest.pos_to_string(minp) .. " to " .. minetest.pos_to_string(maxp))
-	local t0 = os.clock()
+	if with_time then
+		timer_total:start()
+		timer_prepare:start()
+		timer_load:start(false)
+	end
 
 	local c_stone = minetest.get_content_id("default:stone")
 	local c_dirt = minetest.get_content_id("default:dirt")
@@ -157,6 +170,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	vm:get_data(data)
 	local a = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	local ystride = a.ystride
+
+	if with_time then
+		timer_prepare:stop()
+		timer_data:start()
+	end
 
 	for x = xmin, xmax do
 	for z = zmin, zmax do
@@ -204,11 +222,21 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	end
 	end
 
+	if with_time then
+		timer_data:stop()
+		timer_write:start()
+	end
+
 	vm:set_data(data)
 	vm:set_lighting({day = 0, night = 0})
 	vm:calc_lighting()
 	vm:update_liquids()
 	vm:write_to_map()
+
+	if with_time then
+		timer_write:stop()
+		timer_cleaning:start()
+	end
 
 	-- Decrease delay, remove chunks from cache when time is over
 	for _, layer_delays in ipairs(delays) do
@@ -225,19 +253,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 		end
 	end
 
-	local t3 = os.clock()
-	local time = t3 - t0
-	print("[geo_mapgen] Mapgen finished in " .. displaytime(time))
-
-	mapgens = mapgens + 1
-	time_sum = time_sum + time
-	time_sum2 = time_sum2 + time ^ 2
-end)
-
-minetest.register_on_shutdown(function()
-	print("[geo_mapgen] Mapgen calls: " .. mapgens)
-	local average = time_sum / mapgens
-	print("[geo_mapgen] Average time: " .. displaytime(average))
-	local stdev = math.sqrt(time_sum2 / mapgens - average ^ 2)
-	print("[geo_mapgen] Standard dev: " .. displaytime(stdev))
+	if with_time then
+		timer_cleaning:stop()
+		timer_load:stop()
+		timer_total:stop()
+	end
 end)
