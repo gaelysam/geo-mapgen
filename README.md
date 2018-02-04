@@ -6,17 +6,23 @@ It is somewhat like [realterrain](https://forum.minetest.net/viewtopic.php?f=11&
 ![Grand Canyon](https://user-images.githubusercontent.com/6905002/35072311-511f42e2-fbe4-11e7-839d-fbf2140e292a.png)
 
 ## Usage
-You must first convert the DEM image into a database, using the python script `image_convert.py` provided by this mod. You need a working Python installation, with libraries `numpy` and `imageio`.
+You must first convert the DEM image into a database, using the python script `image_convert.py` provided by this mod. You need a working Python installation, with libraries `numpy` and `imageio`, and `tkinter` for graphical mode.
 
 This will generate 2 files in the world directory: `heightmap.dat` which is the database, and `heightmap.dat.conf`, configuration file working with the database.
 
 Syntax for the Python script:
+- Open in graphical mode (needs `tkinter`):
+```
+image_convert.py -g
+```
+- Use in command line mode:
 ```
 image_convert.py input_file.tif minetest_world_directory [options]
 ```
 Note that even if TIFF files are the most commonly used, any image with only one color channel can be loaded by this script.
 
 ### Complete list of options:
+- `-g`: Open in graphical mode.
 - `-f [integer]`: Fragmentation. In the database, the image is cut into squares with a fixed size (by default 80 px) to make data searching faster.
 - `-s [float]`: Vertical scale, number of meters per node (default is 40). Can also be adjusted in the configuration file `heightmap.dat.conf`.
 - `-r [integer|filepath]`: Enable rivers. If integer, minimal surface for catchment area, to produce a river (usually some thousands). If filepath to an image, this image is read and river is set where value > 0.
