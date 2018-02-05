@@ -343,6 +343,64 @@ if gui:
 	root = tk.Tk()
 	root.title("Geo Mapgen image converter")
 
+	class WidgetGroup:
+		def get(self):
+			return self.var.get()
+		def set(self, v):
+			self.var.set(v)
+		def set_state(self, state):
+			for widget in self.widgets:
+				widget.config(state=state)
+
+	class FileEntry(WidgetGroup):
+		def __init__(self, parent, iotype, row=0, column=0, columnspan=1, text=None, default="", dialog_text="Open"):
+			self.var = tk.StringVar()
+			self.var.set(default)
+			self.entry = tk.Entry(parent, textvariable=self.var, width=60)
+			if iotype == "file":
+				callback = self.browse_files
+			elif iotype == "dir":
+				callback = self.browse_dirs
+			self.button = tk.Button(parent, text="Browse", command=callback)
+			if text:
+				self.label = tk.Label(parent, text=text)
+				self.label.grid(row=row, column=column, sticky="W")
+				self.has_label = True
+				self.widgets = [self.entry, self.button, self.label]
+				column += 1
+			else:
+				self.has_label = False
+				self.widgets = [self.entry, self.button]
+			self.entry.grid(row=row, column=column, columnspan=columnspan)
+			column += columnspan
+			self.button.grid(row=row, column=column)
+			self.dialog_text = dialog_text
+
+		def browse_files(self):
+			self.var.set(fd.askopenfilename(title=self.dialog_text))
+
+		def browse_dirs(self):
+			self.var.set(fd.askdirectory(title=self.dialog_text))
+
+	class NumberEntry(WidgetGroup):
+		def __init__(self, parent, mini, maxi, incr=1, row=0, column=0, columnspan=1, text=None, default=0, is_float=False):
+			if is_float:
+				self.var = tk.DoubleVar()
+			else:
+				self.var = tk.IntVar()
+			self.var.set(default)
+			self.spinbox = tk.Spinbox(parent, from_=mini, to=maxi, increment=incr, textvariable=self.var, width=60)
+			if text:
+				self.label = tk.Label(parent, text=text)
+				self.label.grid(row=row, column=column, sticky="W")
+				self.has_label = True
+				self.widgets = [self.spinbox, self.label]
+				column += 1
+			else:
+				self.has_label = False
+				self.widgets = [self.spinbox]
+			self.spinbox.grid(row=row, column=column, columnspan=columnspan)
+
 	frame1 = tk.LabelFrame(root, text="I/O files")
 	frame1.pack()
 	frame2 = tk.LabelFrame(root, text="Generic parameters")
@@ -350,38 +408,10 @@ if gui:
 	frame3 = tk.LabelFrame(root, text="Rivers")
 	frame3.pack()
 
-	input_var = tk.StringVar()
-	input_var.set(fpath_input)
-	input_entry = tk.Entry(frame1, textvariable=input_var, width=60)
-	output_var = tk.StringVar()
-	output_var.set(fpath_output)
-	output_entry = tk.Entry(frame1, textvariable=output_var, width=60)
-	input_entry.grid(row=0, column=1)
-	output_entry.grid(row=1, column=1)
-	tk.Label(frame1, text="Elevation image").grid(row=0, column=0, sticky="W")
-	tk.Label(frame1, text="Minetest world directory").grid(row=1, column=0, sticky="W")
-
-	def input_button_callback():
-		input_var.set(fd.askopenfilename(title="Open elevation image"))
-	def output_button_callback():
-		output_var.set(fd.askdirectory(title="Open Minetest world"))
-
-	input_button = tk.Button(frame1, text="Browse", command=input_button_callback)
-	output_button = tk.Button(frame1, text="Browse", command=output_button_callback)
-	input_button.grid(row=0, column=2)
-	output_button.grid(row=1, column=2)
-
-	tile_size_var = tk.IntVar()
-	tile_size_var.set(frag)
-	tile_size_spin = tk.Spinbox(frame2, from_=0, to=1024, textvariable=tile_size_var)
-	tile_size_spin.grid(row=0, column=1)
-	tk.Label(frame2, text="Tiles size").grid(row=0, column=0, sticky="W")
-
-	scale_var = tk.DoubleVar()
-	scale_var.set(scale)
-	scale_spin = tk.Spinbox(frame2, from_=0, to=1000, textvariable=scale_var)
-	scale_spin.grid(row=1, column=1)
-	tk.Label(frame2, text="Vertical scale in meters per node").grid(row=1, column=0, sticky="W")
+	input_entry = FileEntry(frame1, "file", row=0, column=0, text="Elevation image", default=fpath_input, dialog_text="Open elevation image")
+	output_entry = FileEntry(frame1, "dir", row=1, column=0, text="Minetest world directory", default=fpath_output, dialog_text="Open Minetest world")
+	tile_size_entry = NumberEntry(frame2, 0, 1024, row=0, column=0, text="Tiles size", default=frag)
+	scale_entry = NumberEntry(frame2, 0, 1000, row=1, column=0, text="Vertical scale in meters per node", default=scale)
 
 	def river_gui_update(*args):
 		if river_cb_var.get():
@@ -393,30 +423,20 @@ if gui:
 			else:
 				st1 = "disabled"
 				st2 = "normal"
-			river_input_entry.config(state=st1)
-			river_input_button.config(state=st1)
-
-			river_limit_spin.config(state=st2)
-			river_limit_label.config(state=st2)
-			river_hdiff_spin.config(state=st2)
-			river_hdiff_label.config(state=st2)
-			river_power_spin.config(state=st2)
-			river_power_label.config(state=st2)
-			sea_level_spin.config(state=st2)
-			sea_level_label.config(state=st2)
+			river_input_entry.set_state(st1)
+			river_limit_entry.set_state(st2)
+			river_hdiff_entry.set_state(st2)
+			river_power_entry.set_state(st2)
+			sea_level_entry.set_state(st2)
 		else:
+			st = "disabled"
 			rivermode_rb1.config(state="disabled")
 			rivermode_rb2.config(state="disabled")
-			river_input_entry.config(state="disabled")
-			river_input_button.config(state="disabled")
-			river_limit_spin.config(state="disabled")
-			river_limit_label.config(state="disabled")
-			river_hdiff_spin.config(state="disabled")
-			river_hdiff_label.config(state="disabled")
-			river_power_spin.config(state="disabled")
-			river_power_label.config(state="disabled")
-			sea_level_spin.config(state="disabled")
-			sea_level_label.config(state="disabled")
+			river_input_entry.set_state(st)
+			river_limit_entry.set_state(st)
+			river_hdiff_entry.set_state(st)
+			river_power_entry.set_state(st)
+			sea_level_entry.set_state(st)
 
 	river_cb_var = tk.BooleanVar()
 	river_cb_var.set(rivers)
@@ -430,47 +450,15 @@ if gui:
 	rivermode_rb1 = tk.Radiobutton(frame3, text="Load from file", variable=rivermode_rb_var, value=1)
 	rivermode_rb1.grid(row=1, column=0)
 
-	river_input_var = tk.StringVar()
-	river_input_var.set(fpath_rivers)
-	river_input_entry = tk.Entry(frame3, textvariable=river_input_var, width=60)
-	river_input_entry.grid(row=1, column=1, columnspan=2)
-
-	def river_input_button_callback():
-		river_input_var.set(fd.askopenfilename())
-
-	river_input_button = tk.Button(frame3, text="Browse", command=river_input_button_callback)
-	river_input_button.grid(row=1, column=3)
+	river_input_entry = FileEntry(frame3, "file", row=1, column=1, columnspan=2, default=fpath_rivers, dialog_text="Open river image")
 
 	rivermode_rb2 = tk.Radiobutton(frame3, text="Calculate in-place (slow)", variable=rivermode_rb_var, value=0)
 	rivermode_rb2.grid(row=2, column=0, rowspan=4)
 
-	river_limit_var = tk.IntVar()
-	river_limit_var.set(river_limit)
-	river_limit_spin = tk.Spinbox(frame3, from_=0, to=1e6, increment=50, textvariable=river_limit_var)
-	river_limit_spin.grid(row=2, column=2, sticky="W")
-	river_limit_label = tk.Label(frame3, text="Minimal catchment area")
-	river_limit_label.grid(row=2, column=1, sticky="W")
-
-	river_hdiff_var = tk.DoubleVar()
-	river_hdiff_var.set(max_river_hdiff)
-	river_hdiff_spin = tk.Spinbox(frame3, from_=0, to=100, increment=1, textvariable=river_hdiff_var)
-	river_hdiff_spin.grid(row=3, column=2, sticky="W")
-	river_hdiff_label = tk.Label(frame3, text="Maximal height difference")
-	river_hdiff_label.grid(row=3, column=1, sticky="W")
-
-	river_power_var = tk.DoubleVar()
-	river_power_var.set(river_power)
-	river_power_spin = tk.Spinbox(frame3, from_=0, to=2, increment=0.05, textvariable=river_power_var)
-	river_power_spin.grid(row=4, column=2, sticky="W")
-	river_power_label = tk.Label(frame3, text="River widening power")
-	river_power_label.grid(row=4, column=1, sticky="W")
-
-	sea_level_var = tk.IntVar()
-	sea_level_var.set(sea_level)
-	sea_level_spin = tk.Spinbox(frame3, from_=-32768, to=65535, textvariable=sea_level_var)
-	sea_level_spin.grid(row=5, column=2, sticky="W")
-	sea_level_label = tk.Label(frame3, text="Sea level")
-	sea_level_label.grid(row=5, column=1, sticky="W")
+	river_limit_entry = NumberEntry(frame3, 0, 1e6, incr=50, row=2, column=1, text="Minimal catchment area", default=river_limit)
+	river_hdiff_entry = NumberEntry(frame3, 0, 100, row=3, column=1, text="Maximal height difference", default=max_river_hdiff, is_float=True)
+	river_power_entry = NumberEntry(frame3, 0, 2, incr=0.05, row=4, column=1, text="River widening power", default=river_power, is_float=True)
+	sea_level_entry = NumberEntry(frame3, -32768, 65535, row=5, column=1, text="Sea level", default=sea_level)
 
 	river_gui_update()
 
@@ -487,17 +475,17 @@ if gui:
 		global sea_level
 		global max_river_hdiff
 
-		fpath_input = input_var.get()
-		fpath_output = output_var.get()
-		frag = tile_size_var.get()
-		scale = scale_var.get()
+		fpath_input = input_entry.get()
+		fpath_output = output_entry.get()
+		frag = tile_size_entry.get()
+		scale = scale_entry.get()
 		rivers = river_cb_var.get()
-		rivers_from_file = rivermode_rb_var.get == 1
-		fpath_rivers = river_input_var.get()
-		river_limit = river_limit_var.get()
-		river_power = river_power_var.get()
-		sea_level = sea_level_var.get()
-		max_river_hdiff = river_hdiff_var.get()
+		rivers_from_file = rivermode_rb_var.get() == 1
+		fpath_rivers = river_input_entry.get()
+		river_limit = river_limit_entry.get()
+		river_power = river_power_entry.get()
+		sea_level = sea_level_entry.get()
+		max_river_hdiff = river_hdiff_entry.get()
 
 		generate_database()
 
