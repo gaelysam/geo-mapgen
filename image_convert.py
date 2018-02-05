@@ -49,7 +49,7 @@ rivers = False
 rivers_from_file = False
 fpath_rivers = None
 river_limit = 1000
-coefficient = 0.25 # When water quantity is multiplied by t, river width is multiplied by t ^ coefficient
+river_power = 0.25 # When water quantity is multiplied by t, river width is multiplied by t ^ river_power
 sea_level = -128
 max_river_hdiff = 40
 gui = False
@@ -82,7 +82,7 @@ while i < n_args:
 			i += 2
 			continue
 		if l == "c":
-			coefficient = float(sys.argv[i+1])
+			river_power = float(sys.argv[i+1])
 			i += 2
 			continue
 		if l == "d":
@@ -277,7 +277,7 @@ def generate_database():
 
 			def draw_river(x, y, q):
 				if q >= river_limit:
-					rsize = int((q / river_limit)**coefficient)
+					rsize = int((q / river_limit)**river_power)
 					if rsize > 1:
 						hmax = heightmap[y,x] + max_river_hdiff
 						rsize -= 1
@@ -400,8 +400,8 @@ if gui:
 			river_limit_label.config(state=st2)
 			river_hdiff_spin.config(state=st2)
 			river_hdiff_label.config(state=st2)
-			river_coeff_spin.config(state=st2)
-			river_coeff_label.config(state=st2)
+			river_power_spin.config(state=st2)
+			river_power_label.config(state=st2)
 			sea_level_spin.config(state=st2)
 			sea_level_label.config(state=st2)
 		else:
@@ -413,8 +413,8 @@ if gui:
 			river_limit_label.config(state="disabled")
 			river_hdiff_spin.config(state="disabled")
 			river_hdiff_label.config(state="disabled")
-			river_coeff_spin.config(state="disabled")
-			river_coeff_label.config(state="disabled")
+			river_power_spin.config(state="disabled")
+			river_power_label.config(state="disabled")
 			sea_level_spin.config(state="disabled")
 			sea_level_label.config(state="disabled")
 
@@ -458,12 +458,12 @@ if gui:
 	river_hdiff_label = tk.Label(frame3, text="Maximal height difference")
 	river_hdiff_label.grid(row=3, column=1, sticky="W")
 
-	river_coeff_var = tk.DoubleVar()
-	river_coeff_var.set(coefficient)
-	river_coeff_spin = tk.Spinbox(frame3, from_=0, to=2, increment=0.05, textvariable=river_coeff_var)
-	river_coeff_spin.grid(row=4, column=2, sticky="W")
-	river_coeff_label = tk.Label(frame3, text="River widening coefficient")
-	river_coeff_label.grid(row=4, column=1, sticky="W")
+	river_power_var = tk.DoubleVar()
+	river_power_var.set(river_power)
+	river_power_spin = tk.Spinbox(frame3, from_=0, to=2, increment=0.05, textvariable=river_power_var)
+	river_power_spin.grid(row=4, column=2, sticky="W")
+	river_power_label = tk.Label(frame3, text="River widening power")
+	river_power_label.grid(row=4, column=1, sticky="W")
 
 	sea_level_var = tk.IntVar()
 	sea_level_var.set(sea_level)
@@ -483,7 +483,7 @@ if gui:
 		global rivers_from_file
 		global fpath_rivers
 		global river_limit
-		global coefficient
+		global river_power
 		global sea_level
 		global max_river_hdiff
 
@@ -495,7 +495,7 @@ if gui:
 		rivers_from_file = rivermode_rb_var.get == 1
 		fpath_rivers = river_input_var.get()
 		river_limit = river_limit_var.get()
-		coefficient = river_coeff_var.get()
+		river_power = river_power_var.get()
 		sea_level = sea_level_var.get()
 		max_river_hdiff = river_hdiff_var.get()
 
