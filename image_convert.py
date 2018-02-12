@@ -401,17 +401,17 @@ if gui:
 				self.widgets = [self.spinbox]
 			self.spinbox.grid(row=row, column=column, columnspan=columnspan)
 
-	frame1 = tk.LabelFrame(root, text="I/O files")
-	frame1.pack()
-	frame2 = tk.LabelFrame(root, text="Generic parameters")
-	frame2.pack()
-	frame3 = tk.LabelFrame(root, text="Rivers")
-	frame3.pack()
+	frame_files = tk.LabelFrame(root, text="I/O files")
+	frame_files.pack()
+	frame_params = tk.LabelFrame(root, text="Generic parameters")
+	frame_params.pack()
+	frame_rivers = tk.LabelFrame(root, text="Rivers")
+	frame_rivers.pack()
 
-	input_entry = FileEntry(frame1, "file", row=0, column=0, text="Elevation image", default=fpath_input, dialog_text="Open elevation image")
-	output_entry = FileEntry(frame1, "dir", row=1, column=0, text="Minetest world directory", default=fpath_output, dialog_text="Open Minetest world")
-	tile_size_entry = NumberEntry(frame2, 0, 1024, row=0, column=0, text="Tiles size", default=frag)
-	scale_entry = NumberEntry(frame2, 0, 1000, row=1, column=0, text="Vertical scale in meters per node", default=scale)
+	input_entry = FileEntry(frame_files, "file", row=0, column=0, text="Elevation image", default=fpath_input, dialog_text="Open elevation image")
+	output_entry = FileEntry(frame_files, "dir", row=1, column=0, text="Minetest world directory", default=fpath_output, dialog_text="Open Minetest world")
+	tile_size_entry = NumberEntry(frame_params, 0, 1024, row=0, column=0, text="Tiles size", default=frag)
+	scale_entry = NumberEntry(frame_params, 0, 1000, row=1, column=0, text="Vertical scale in meters per node", default=scale)
 
 	def river_gui_update(*args):
 		if river_cb_var.get():
@@ -441,24 +441,24 @@ if gui:
 	river_cb_var = tk.BooleanVar()
 	river_cb_var.set(rivers)
 	river_cb_var.trace("w", river_gui_update)
-	river_cb = tk.Checkbutton(frame3, text="Rivers", variable=river_cb_var)
+	river_cb = tk.Checkbutton(frame_rivers, text="Rivers", variable=river_cb_var)
 	river_cb.grid(row=0, column=0)
 
 	rivermode_rb_var = tk.IntVar()
 	rivermode_rb_var.set(rivers_from_file)
 	rivermode_rb_var.trace("w", river_gui_update)
-	rivermode_rb1 = tk.Radiobutton(frame3, text="Load from file", variable=rivermode_rb_var, value=1)
+	rivermode_rb1 = tk.Radiobutton(frame_rivers, text="Load from file", variable=rivermode_rb_var, value=1)
 	rivermode_rb1.grid(row=1, column=0)
 
-	river_input_entry = FileEntry(frame3, "file", row=1, column=1, columnspan=2, default=fpath_rivers, dialog_text="Open river image")
+	river_input_entry = FileEntry(frame_rivers, "file", row=1, column=1, columnspan=2, default=fpath_rivers, dialog_text="Open river image")
 
-	rivermode_rb2 = tk.Radiobutton(frame3, text="Calculate in-place (slow)", variable=rivermode_rb_var, value=0)
+	rivermode_rb2 = tk.Radiobutton(frame_rivers, text="Calculate in-place (slow)", variable=rivermode_rb_var, value=0)
 	rivermode_rb2.grid(row=2, column=0, rowspan=4)
 
-	river_limit_entry = NumberEntry(frame3, 0, 1e6, incr=50, row=2, column=1, text="Minimal catchment area", default=river_limit)
-	river_hdiff_entry = NumberEntry(frame3, 0, 100, row=3, column=1, text="Maximal height difference", default=max_river_hdiff, is_float=True)
-	river_power_entry = NumberEntry(frame3, 0, 2, incr=0.05, row=4, column=1, text="River widening power", default=river_power, is_float=True)
-	sea_level_entry = NumberEntry(frame3, -32768, 65535, row=5, column=1, text="Sea level", default=sea_level)
+	river_limit_entry = NumberEntry(frame_rivers, 0, 1e6, incr=50, row=2, column=1, text="Minimal catchment area", default=river_limit)
+	river_hdiff_entry = NumberEntry(frame_rivers, 0, 100, row=3, column=1, text="Maximal height difference", default=max_river_hdiff, is_float=True)
+	river_power_entry = NumberEntry(frame_rivers, 0, 2, incr=0.05, row=4, column=1, text="River widening power", default=river_power, is_float=True)
+	sea_level_entry = NumberEntry(frame_rivers, -32768, 65535, row=5, column=1, text="Sea level", default=sea_level)
 
 	river_gui_update()
 
