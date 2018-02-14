@@ -123,16 +123,36 @@ wgs = osr.SpatialReference()
 wgs.ImportFromEPSG(4326)
 transform = osr.CreateCoordinateTransformation(wgs, mercator)
 
-def get_geotransform(north, west, east, south, pxsize):
-	minp = transform.TransformPoint(west, north)
-	maxp = transform.TransformPoint(east, south)
+drv = gdal.GetDriverByName("MEM")
 
-	pxsize /= np.cos(np.radians((maxp[1]-minp[1]) / 2))
+def make_heightmap(north, east, south, west, hscale):
+	dem1 = gdal.Open(fpath_input)
+	dem1b = dem1.GetRasterBand(1)
 
-	npx = (maxp[0]-minp[0]) // pxsize
-	npy = (maxp[1]-minp[1]) // pxsize
+	minp = transform.TransformPoint(west, south)
+	maxp = transform.TransformPoint(east, north)
 
-	return (minp[0], pxsize, 0., minp[1], 0., -pxsize), int(npx), int(npy)
+	print(hscale)
+
+	pxsize = hscale / np.cos(np.radians((north+south) / 2))
+
+	npx = int((maxp[0]-minp[0]) // pxsize)
+	npy = int((maxp[1]-minp[1]) // pxsize)
+
+	print(npx, npy, pxsize)
+
+	geotransform = (minp[0], pxsize, 0., maxp[1], 0., -pxsize)
+
+	print(dem1.GetGeoTransform(), geotransform)
+
+	dem2 = drv.Create("", npx, npy, 1, dem1b.DataType)
+	dem2b = dem2.GetRasterBand(1)
+	nodata = dem1b.GetNoDataValue()
+	dem2b.SetNoDataValue(nodata)
+	print(nodata)
+	dem2.SetGeoTransform(geotransform)
+	gdal.ReprojectImage(dem1, dem2, dem1.GetProjection(), mercator.ExportToWkt(), gdal.GRA_Lanczos)
+	return dem2.ReadAsArray()
 
 def generate_database():
 	global fpath_output
@@ -152,8 +172,13 @@ def generate_database():
 	file_conf = open(fpath_conf, "w")
 
 	# Load the first file
-	heightmap = imageio.imread(fpath_input).newbyteorder("<")
+	#heightmap = imageio.imread(fpath_input).newbyteorder("<")
+	heightmap = make_heightmap(north_entry.get(), east_entry.get(), south_entry.get(), west_entry.get(), hscale_entry.get())
+	print(heightmap.dtype)
 	(Y, X) = heightmap.shape
+	print(X, Y)
+
+	print(np.min(heightmap))
 
 	# Geometry stuff
 	table_size_x, table_size_y = int(np.ceil(X / frag)), int(np.ceil(Y / frag))
