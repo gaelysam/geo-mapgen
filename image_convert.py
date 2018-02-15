@@ -66,8 +66,13 @@ transform = osr.CreateCoordinateTransformation(wgs, mercator)
 
 drv = gdal.GetDriverByName("MEM")
 
-def make_heightmap(north, east, south, west, hscale):
-	dem1 = gdal.Open(fpath_input)
+def make_heightmap(fpath, region=None, interp=gdal.GRA_NearestNeighbour):
+	crop = False
+	if region:
+		crop = True
+		north, east, south, west, hscale = region
+
+	dem1 = gdal.Open(fpath)
 	dem1b = dem1.GetRasterBand(1)
 
 	minp = transform.TransformPoint(west, south)
@@ -87,12 +92,8 @@ def make_heightmap(north, east, south, west, hscale):
 	print(dem1.GetGeoTransform(), geotransform)
 
 	dem2 = drv.Create("", npx, npy, 1, dem1b.DataType)
-	dem2b = dem2.GetRasterBand(1)
-	nodata = dem1b.GetNoDataValue()
-	dem2b.SetNoDataValue(nodata)
-	print(nodata)
 	dem2.SetGeoTransform(geotransform)
-	gdal.ReprojectImage(dem1, dem2, dem1.GetProjection(), mercator.ExportToWkt(), gdal.GRA_Lanczos)
+	gdal.ReprojectImage(dem1, dem2, dem1.GetProjection(), mercator.ExportToWkt(), interp)
 	return dem2.ReadAsArray()
 
 def generate_database():
@@ -114,7 +115,8 @@ def generate_database():
 
 	# Load the first file
 	#heightmap = imageio.imread(fpath_input).newbyteorder("<")
-	heightmap = make_heightmap(north_entry.get(), east_entry.get(), south_entry.get(), west_entry.get(), hscale_entry.get())
+	north, east, south, west, hscale = north_entry.get(), east_entry.get(), south_entry.get(), west_entry.get(), hscale_entry.get()
+	heightmap = make_heightmap(north, east, south, west, hscale, interp=gdal.GRA_Lanczos)
 	print(heightmap.dtype)
 	(Y, X) = heightmap.shape
 	print(X, Y)
@@ -400,23 +402,54 @@ frame_rivers.pack()
 
 input_entry = FileEntry(frame_files, "file", row=0, column=0, text="Elevation image", default=fpath_input, dialog_text="Open elevation image")
 output_entry = FileEntry(frame_files, "dir", row=1, column=0, text="Minetest world directory", default=fpath_output, dialog_text="Open Minetest world")
-north_entry = NumberEntry(frame_region, -90, 90, row=0, column=1, sticky="E", text="N", is_float=True)
-west_entry = NumberEntry(frame_region, -180, 180, row=1, column=0, sticky="E", text="W", is_float=True)
-east_entry = NumberEntry(frame_region, -180, 180, row=1, column=2, sticky="E", text="E", is_float=True)
-south_entry = NumberEntry(frame_region, -90, 90, row=2, column=1, sticky="E", text="S", is_float=True)
-hscale_entry = NumberEntry(frame_region, 0, 10000, row=3, column=0, text="Horizontal scale", is_float=True)
+
+def region_gui_update(*args):
+	value = region_rb_var.get()
+	state1 = "disabled"
+	state2 = "disabled"
+	if value >= 1:
+		state1 = "normal"
+		if value >= 2:
+			state2 = "normal"
+	north_entry.set_state(state1)
+	east_entry.set_state(state1)
+	south_entry.set_state(state1)
+	west_entry.set_state(state1)
+	hscale_entry.set_state(state2)
+
+region_rb_var = tk.IntVar()
+region_rb_var.set(0)
+region_rb_var.trace("w", region_gui_update)
+region_rb1 = tk.Radiobutton(frame_region, text="Don't modify the image", variable=region_rb_var, value=0)
+region_rb2 = tk.Radiobutton(frame_region, text="Crop image", variable=region_rb_var, value=1)
+region_rb3 = tk.Radiobutton(frame_region, text="Crop and resample", variable=region_rb_var, value=2)
+region_rb1.grid(row=0, column=0, sticky="W")
+region_rb2.grid(row=1, column=0, sticky="W")
+region_rb3.grid(row=2, column=0, sticky="W")
+north_entry = NumberEntry(frame_region, -90, 90, row=3, column=1, sticky="E", text="N", is_float=True)
+west_entry = NumberEntry(frame_region, -180, 180, row=4, column=0, sticky="E", text="W", is_float=True)
+east_entry = NumberEntry(frame_region, -180, 180, row=4, column=2, sticky="E", text="E", is_float=True)
+south_entry = NumberEntry(frame_region, -90, 90, row=5, column=1, sticky="E", text="S", is_float=True)
+hscale_entry = NumberEntry(frame_region, 0, 10000, row=6, column=0, text="Horizontal scale", is_float=True)
 map_size_label = tk.Label(frame_region, text="")
+
+region_gui_update()
+
 def map_size_update(*args):
-	north, east, south, west = north_entry.get(), east_entry.get(), south_entry.get(), west_entry.get()
-	minp = transform.TransformPoint(west, south)
-	maxp = transform.TransformPoint(east, north)
-	pxsize = hscale_entry.get() / np.cos(np.radians((north+south)/2))
-	npx = (maxp[0]-minp[0]) // pxsize
-	npy = (maxp[1]-minp[1]) // pxsize
+	value = region_rb_var.get()
+	if value == 2:
+		north, east, south, west = north_entry.get(), east_entry.get(), south_entry.get(), west_entry.get()
+		minp = transform.TransformPoint(west, south)
+		maxp = transform.TransformPoint(east, north)
+		pxsize = hscale_entry.get() / np.cos(np.radians((north+south)/2))
+		npx = (maxp[0]-minp[0]) // pxsize
+		npy = (maxp[1]-minp[1]) // pxsize
+	
 	map_size_label.config(text="{:d} x {:d}".format(int(npx), int(npy)))
+
 calc_button = tk.Button(frame_region, text="Calculate size", command=map_size_update)
-map_size_label.grid(row=3, column=3)
-calc_button.grid(row=3, column=2)
+map_size_label.grid(row=6, column=3)
+calc_button.grid(row=6, column=2)
 
 tile_size_entry = NumberEntry(frame_params, 0, 1024, row=0, column=0, text="Tiles size", default=frag)
 scale_entry = NumberEntry(frame_params, 0, 1000, row=1, column=0, text="Vertical scale in meters per node", default=scale)
