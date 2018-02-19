@@ -21,9 +21,10 @@ param_reproject = False
 param_crop = False
 param_region = None
 param_hscale = 100.0
+param_reference = "heightmap"
 
-def set_parameters(reproject=None, crop=None, region=None, hscale=None):
-	global param_reproject, param_crop, param_region, param_hscale
+def set_parameters(reproject=None, crop=None, region=None, hscale=None, reference=None):
+	global param_reproject, param_crop, param_region, param_hscale, param_reference
 	if reproject != None:
 		param_reproject = reproject
 	if crop != None:
@@ -32,6 +33,8 @@ def set_parameters(reproject=None, crop=None, region=None, hscale=None):
 		param_region = region
 	if hscale != None:
 		param_hscale = hscale
+	if reference != None:
+		param_reference = reference
 
 def update_map(mapname, newfilepath):
 	if mapname in maps_paths and maps_paths[mapname] == newfilepath:
@@ -40,15 +43,15 @@ def update_map(mapname, newfilepath):
 		maps[mapname] = gdal.Open(newfilepath)
 		maps_paths[mapname] = newfilepath
 	except:
-		print("Path", newfilepath, "is not a valid map.")	
+		print("Path", newfilepath, "is not a valid map.")
 
-def get_map_size(mapname):
-	if mapname in maps:
-		thismap = maps[mapname]
+def get_map_size():
+	if param_reference in maps:
+		refmap = maps[param_reference]
 	else:
-		print("Map", mapname, "does not exist.")
+		print("Map", param_reference, "does not exist.")
 		return
-	if param_region:
+	if param_crop:
 		if param_reproject:
 			north, east, south, west = param_region
 			minp = merc_transform.TransformPoint(west, south)
@@ -58,9 +61,9 @@ def get_map_size(mapname):
 			npy = (maxp[1]-minp[1]) // pxsize
 			return int(npx), int(npy), 0, 0, pxsize
 		else:
-			gt = thismap.GetGeoTransform()
+			gt = refmap.GetGeoTransform()
 			proj = osr.SpatialReference()
-			proj.ImportFromWkt(thismap.GetProjection())
+			proj.ImportFromWkt(refmap.GetProjection())
 			transform = osr.CreateCoordinateTransformation(wgs, proj)
 			north, east, south, west = param_region
 			xNW, yNW = gm.inverse(gt, transform.TransformPoint(west, north))
@@ -71,23 +74,34 @@ def get_map_size(mapname):
 			ymax = np.floor(max(yNW, ySE)+.5)
 			return int(xmax-xmin+1), int(ymax-ymin+1), int(xmin), int(ymin), 0
 	else:
-		return thismap.RasterXSize, thismap.RasterYSize, 0, 0, 0
+		return refmap.RasterXSize, refmap.RasterYSize, 0, 0, 0
 
 def read_map(mapname, interp=gdal.GRA_NearestNeighbour):
-	npx, npy, xmin, ymin, pxsize = get_map_size(mapname)
+	npx, npy, xmin, ymin, pxsize = get_map_size()
 	if mapname in maps:
 		map1 = maps[mapname]
 	else:
+		print("Map", mapname, "does not exist.")
 		return
 
-	if not param_reproject:
+	if param_reproject:
+		proj = mercator
+		transform = merc_transform
+		north, east, south, west = param_region
+		origin = merc_transform.TransformPoint(west, north)
+		geotransform = (origin[0], pxsize, 0., origin[1], 0., -pxsize)
+	elif mapname == param_reference:
 		return map1.ReadAsArray(xmin, ymin, npx, npy)
-	north, east, south, west = param_region
-	origin = merc_transform.TransformPoint(west, north)
-	geotransform = (origin[0], pxsize, 0., origin[1], 0., -pxsize)
-	print(geotransform)
-
+	else:
+		refmap = maps[param_reference]
+		proj = osr.SpatialReference()
+		proj.ImportFromWkt(refmap.GetProjection())
+		transform = osr.CreateCoordinateTransformation(wgs, proj)
+		ref_gt = refmap.GetGeoTransform()
+		origin = gm.transform(ref_gt, xmin, ymin)
+		geotransform = (origin[0], ref_gt[1], ref_gt[2], origin[1], ref_gt[4], ref_gt[5])
+			
 	map2 = drv.Create("", npx, npy, 1, map1.GetRasterBand(1).DataType)
 	map2.SetGeoTransform(geotransform)
-	gdal.ReprojectImage(map1, map2, map1.GetProjection(), mercator.ExportToWkt(), interp)
+	gdal.ReprojectImage(map1, map2, map1.GetProjection(), proj.ExportToWkt(), interp)
 	return map2.ReadAsArray()

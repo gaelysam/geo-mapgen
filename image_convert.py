@@ -117,7 +117,7 @@ region_gui_update()
 def update_parameters():
 	value = region_rb_var.get()
 	if value == 0:
-		map_transform.set_parameters(reproject=False, crop=False)
+		map_transform.set_parameters(reproject=False, crop=False, reference="heightmap")
 	if value >= 1:
 		if value == 2:
 			reproject=True
@@ -132,7 +132,7 @@ def map_size_update(*args):
 	fpath = input_entry.get()
 	map_transform.update_map("heightmap", fpath)
 
-	npx, npy, _, _, _ = map_transform.get_map_size("heightmap")
+	npx, npy, _, _, _ = map_transform.get_map_size()
 	map_size_label.config(text="{:d} x {:d}".format(int(npx), int(npy)))
 
 calc_button = tk.Button(frame_region, text="Calculate size", command=map_size_update)
@@ -203,13 +203,13 @@ def proceed():
 	update_parameters()
 	
 	map_transform.update_map("heightmap", fpath_input)
-	heightmap = map_transform.read_map("heightmap")
+	heightmap = map_transform.read_map("heightmap", interp=4) # Read with Lanczos interpolation (code 4)
 	if river_cb_var.get():
 		rivers_from_file = rivermode_rb_var.get() == 1
 		if rivers_from_file:
 			fpath_rivers = river_input_entry.get()
 			map_transform.update_map("rivers", fpath_rivers)
-			rivermap = map_transform.read_map("rivers")
+			rivermap = map_transform.read_map("rivers", interp=8)
 		else:
 			river_limit = river_limit_entry.get()
 			river_power = river_power_entry.get()
