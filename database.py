@@ -81,7 +81,7 @@ def generate(file_output, file_conf, heightmap, rivermap=None, frag=80, scale=40
 
 	layer(data, heightmap, 0, frag)
 
-	if not type(rivermap) is None:
+	if type(rivermap) is not type(None):
 		layer(data, rivermap, 1, frag)
 
 	# Build file header
