@@ -42,9 +42,9 @@ def generate_rivermap(heightmap, sea_level=128, river_limit=1000, max_river_hdif
 	for x in np.flatnonzero(~seas[-1,:]):
 		add_start_point(Y-1, x)
 	for y in np.flatnonzero(~seas[1:-1,0]):
-		add_start_point(y, 0)
+		add_start_point(y+1, 0)
 	for y in np.flatnonzero(~seas[1:-1,-1]):
-		add_start_point(y, -1)
+		add_start_point(y+1, X-1)
 
 	del seas
 
