@@ -36,14 +36,19 @@ def set_parameters(reproject=None, crop=None, region=None, hscale=None, referenc
 	if reference != None:
 		param_reference = reference
 
-def update_map(mapname, newfilepath):
+def update_map(mapname, newfilepath, get_proj=None):
 	if mapname in maps_paths and maps_paths[mapname] == newfilepath:
 		return
-	try:
-		maps[mapname] = gdal.Open(newfilepath)
+	dataset = gdal.Open(newfilepath)
+	if dataset:
+		maps[mapname] = dataset
 		maps_paths[mapname] = newfilepath
-	except:
-		print("Path", newfilepath, "is not a valid map.")
+		proj = osr.SpatialReference()
+		proj.ImportFromWkt(dataset.GetProjection())
+		if proj.Validate() != 0 and get_proj:
+			epsg = get_proj(mapname)
+			proj.ImportFromEPSG(epsg)
+			dataset.SetProjection(proj.ExportToWkt())
 
 def get_map_size():
 	if param_reference in maps:

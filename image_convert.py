@@ -4,6 +4,8 @@
 
 import tkinter as tk
 import tkinter.filedialog as fd
+import tkinter.simpledialog as sd
+import functools
 
 import map_transform
 import database
@@ -21,6 +23,8 @@ class WidgetGroup:
 	def set_state(self, state):
 		for widget in self.widgets:
 			widget.config(state=state)
+	def trace(self, mode, callback):
+		self.var.trace(mode, callback)
 
 class FileEntry(WidgetGroup):
 	def __init__(self, parent, iotype, row=0, column=0, columnspan=1, sticky="W", text=None, default="", dialog_text="Open"):
@@ -82,8 +86,19 @@ frame_landcover.pack()
 frame_rivers = tk.LabelFrame(root, text="Rivers")
 frame_rivers.pack()
 
+def input_projection(mapname):
+	return sd.askinteger("Projection", "GDAL has failed to detect projection automatically.\nPlease set here the EPSG number of the projection\nused by "+mapname+".")
+
+def file_map_update(mapname, file_entry, *args):
+	fpath = file_entry.get()
+	map_transform.update_map(mapname, fpath, get_proj=input_projection)
+
+def get_update_callback(entry, mapname):
+	return functools.partial(file_map_update, mapname, entry)
+
 input_entry = FileEntry(frame_files, "file", row=0, column=0, text="Elevation image", dialog_text="Open elevation image")
 output_entry = FileEntry(frame_files, "dir", row=1, column=0, text="Minetest world directory", dialog_text="Open Minetest world")
+input_entry.trace("w", get_update_callback(input_entry, "heightmap"))
 
 def region_gui_update(*args):
 	value = region_rb_var.get()
@@ -132,8 +147,6 @@ def update_parameters():
 
 def map_size_update(*args):
 	update_parameters()
-	fpath = input_entry.get()
-	map_transform.update_map("heightmap", fpath)
 
 	npx, npy, _, _, _ = map_transform.get_map_size()
 	map_size_label.config(text="{:d} x {:d}".format(int(npx), int(npy)))
@@ -161,6 +174,7 @@ landcover_cb.grid(row=0, column=0)
 
 landcover_input_entry = FileEntry(frame_landcover, "file", row=1, column=0, dialog_text="Open land cover image")
 landcover_legend_entry = FileEntry(frame_landcover, "file", row=2, column=0, dialog_text="Open land cover legend")
+landcover_input_entry.trace("w", get_update_callback(landcover_input_entry, "landcover"))
 
 landcover_gui_update()
 
@@ -202,6 +216,7 @@ rivermode_rb1 = tk.Radiobutton(frame_rivers, text="Load from file", variable=riv
 rivermode_rb1.grid(row=1, column=0)
 
 river_input_entry = FileEntry(frame_rivers, "file", row=1, column=1, columnspan=2, dialog_text="Open river image")
+river_input_entry.trace("w", get_update_callback(river_input_entry, "rivermap"))
 
 rivermode_rb2 = tk.Radiobutton(frame_rivers, text="Calculate in-place (slow)", variable=rivermode_rb_var, value=0)
 rivermode_rb2.grid(row=2, column=0, rowspan=4)
@@ -214,7 +229,6 @@ sea_level_entry = NumberEntry(frame_rivers, -32768, 65535, row=5, column=1, text
 river_gui_update()
 
 def proceed():
-	fpath_input = input_entry.get()
 	fpath_output = output_entry.get()
 	fpath_output += "/heightmap.dat"
 	fpath_conf = fpath_output + ".conf"
@@ -224,13 +238,10 @@ def proceed():
 
 	update_parameters()
 	
-	map_transform.update_map("heightmap", fpath_input)
 	heightmap = map_transform.read_map("heightmap", interp=4) # Read with Lanczos interpolation (code 4)
 	if river_cb_var.get():
 		rivers_from_file = rivermode_rb_var.get() == 1
 		if rivers_from_file:
-			fpath_rivers = river_input_entry.get()
-			map_transform.update_map("rivers", fpath_rivers)
 			rivermap = map_transform.read_map("rivers", interp=8)
 		else:
 			river_limit = river_limit_entry.get()
@@ -242,9 +253,7 @@ def proceed():
 		rivermap = None
 
 	if landcover_cb_var.get():
-		fpath_landcover = landcover_input_entry.get()
 		fpath_legend = landcover_legend_entry.get()
-		map_transform.update_map("landcover", fpath_landcover)
 		landmap_raw = map_transform.read_map("landcover", interp=0)
 		landmap, legend = make_landcover(landmap_raw, fpath_legend)
 	else:
