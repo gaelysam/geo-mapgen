@@ -1,8 +1,11 @@
 local path = "heightmap.dat"
 local conf_path = "heightmap.dat.conf"
 
-file = io.open(minetest.get_worldpath() .. "/" .. path)
-local conf = Settings(minetest.get_worldpath() .. "/" .. conf_path)
+local worldpath = minetest.get_worldpath()
+local modpath = minetest.get_modpath(minetest.get_current_modname())
+
+file = io.open(worldpath .. "/" .. path)
+local conf = Settings(worldpath .. "/" .. conf_path)
 
 local scale = conf:get("scale") or 40
 local remove_delay = 10 -- Number of mapgen calls until a chunk is unloaded
@@ -66,6 +69,9 @@ local delays = {} -- Will be a list of delay tables. A delay table is a table th
 local heightmap = nil
 local rivermap = nil
 local rivers = false
+local biomemap = nil
+local biomes = false
+local biome_list = {}
 
 -- Layers
 local layers = {}
@@ -115,6 +121,16 @@ for l=1, layer_count do
 		print("Rivermap enabled!")
 		rivermap = layer
 		rivers = true
+	elseif datatype == 2 then
+		print("Biomemap enabled!")
+		biomemap = layer
+		biomes = true
+
+		local biomes_by_name = dofile(modpath .. "/landcover.lua") -- Load biome descriptions
+		local biomenames = meta:split(',', true)
+		for i, name in ipairs(biomenames) do
+			biome_list[i] = biomes_by_name[name]
+		end
 	end
 
 	local data_size = index[#index]
@@ -176,30 +192,45 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 		local h = math.floor(value(heightmap, nchunk, npx) / scale)
 
-		local river_here = false
-		if rivers then
-			river_here = value(rivermap, nchunk, npx) > 0
-		end
-
-		for y = minp.y, math.min(math.max(h, 0), maxp.y) do
-			local node
-			if h - y < 3 then
-				if h == y and y >= 0 then
-					if river_here then
-						node = c_rwater
-					else
-						node = c_lawn
-					end
-				elseif y > h then
-					node = c_water
-				else
-					node = c_dirt
-				end
-			else
-				node = c_stone
+		if minp.y < h then
+			local river_here = false
+			if rivers then
+				river_here = value(rivermap, nchunk, npx) > 0
 			end
-			data[ivm] = node
-			ivm = ivm + ystride
+			local stone, filler, top = c_stone, c_dirt, c_lawn
+			local nfiller, ntop = 3, 1
+			if biomes then
+				biome = biome_list[value(biomemap, nchunk, npx)]
+				if biome then
+					stone = biome.stone
+					filler = biome.filler
+					top = biome.top
+					nfiller = biome.filler_depth
+					ntop = biome.top_depth
+				end
+			end
+
+			for y = minp.y, math.min(math.max(h, 0), maxp.y) do
+				local node
+				local hdiff = h - y
+				if hdiff < nfiller then
+					if hdiff < ntop and y >= 0 then
+						if river_here and y == h then
+							node = c_rwater
+						else
+							node = top
+						end
+					elseif y > h then
+						node = c_water
+					else
+						node = filler
+					end
+				else
+					node = stone
+				end
+				data[ivm] = node
+				ivm = ivm + ystride
+			end
 		end
 	end
 	end
