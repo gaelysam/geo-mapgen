@@ -8,6 +8,7 @@ import tkinter.filedialog as fd
 import map_transform
 import database
 import rivers
+from landcover import make_landcover
 
 root = tk.Tk()
 root.title("Geo Mapgen image converter")
@@ -76,6 +77,8 @@ frame_region = tk.LabelFrame(root, text="Region")
 frame_region.pack()
 frame_params = tk.LabelFrame(root, text="Generic parameters")
 frame_params.pack()
+frame_landcover = tk.LabelFrame(root, text="Land Cover")
+frame_landcover.pack()
 frame_rivers = tk.LabelFrame(root, text="Rivers")
 frame_rivers.pack()
 
@@ -141,6 +144,25 @@ calc_button.grid(row=6, column=2)
 
 tile_size_entry = NumberEntry(frame_params, 0, 1024, row=0, column=0, text="Tiles size", default=80)
 scale_entry = NumberEntry(frame_params, 0, 1000, row=1, column=0, text="Vertical scale in meters per node", default=40)
+
+def landcover_gui_update(*args):
+	if landcover_cb_var.get():
+		st = "normal"
+	else:
+		st = "disabled"
+	landcover_input_entry.set_state(st)
+	landcover_legend_entry.set_state(st)
+
+landcover_cb_var = tk.BooleanVar()
+landcover_cb_var.set(False)
+landcover_cb_var.trace("w", landcover_gui_update)
+landcover_cb = tk.Checkbutton(frame_landcover, text="Enable Land Cover", variable=landcover_cb_var)
+landcover_cb.grid(row=0, column=0)
+
+landcover_input_entry = FileEntry(frame_landcover, "file", row=1, column=0, dialog_text="Open land cover image")
+landcover_legend_entry = FileEntry(frame_landcover, "file", row=2, column=0, dialog_text="Open land cover legend")
+
+landcover_gui_update()
 
 def river_gui_update(*args):
 	if river_cb_var.get():
@@ -219,9 +241,19 @@ def proceed():
 	else:
 		rivermap = None
 
+	if landcover_cb_var.get():
+		fpath_landcover = landcover_input_entry.get()
+		fpath_legend = landcover_legend_entry.get()
+		map_transform.update_map("landcover", fpath_landcover)
+		landmap_raw = map_transform.read_map("landcover", interp=0)
+		landmap, legend = make_landcover(landmap_raw, fpath_legend)
+	else:
+		landmap = None
+		legend = None
+
 	tile_size = tile_size_entry.get()
 	scale = scale_entry.get()	
-	database.generate(file_output, file_conf, heightmap, rivermap=rivermap, frag=tile_size, scale=scale)
+	database.generate(file_output, file_conf, heightmap, rivermap=rivermap, landmap=landmap, landmap_legend=legend, frag=tile_size, scale=scale)
 
 proceed_button = tk.Button(root, text="Proceed", command = proceed)
 proceed_button.pack()

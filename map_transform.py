@@ -98,7 +98,7 @@ def read_map(mapname, interp=gdal.GRA_NearestNeighbour):
 		proj.ImportFromWkt(refmap.GetProjection())
 		transform = osr.CreateCoordinateTransformation(wgs, proj)
 		ref_gt = refmap.GetGeoTransform()
-		origin = gm.transform(ref_gt, xmin, ymin)
+		origin = gm.transform(ref_gt, (xmin, ymin))
 		geotransform = (origin[0], ref_gt[1], ref_gt[2], origin[1], ref_gt[4], ref_gt[5])
 			
 	map2 = drv.Create("", npx, npy, 1, map1.GetRasterBand(1).DataType)
