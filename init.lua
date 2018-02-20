@@ -192,7 +192,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 		local h = math.floor(value(heightmap, nchunk, npx) / scale)
 
-		if minp.y < h then
+		if minp.y <= h then
 			local river_here = false
 			if rivers then
 				river_here = value(rivermap, nchunk, npx) > 0
