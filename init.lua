@@ -223,7 +223,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					top = biome.top
 					nfiller = biome.filler_depth
 					ntop = biome.top_depth
-					if maxp.y >= h then -- Generate decoration
+					if maxp.y >= h and not river_here then -- Generate decoration
 						local deco, is_schem = choose_deco(biome.decos)
 						if deco then
 							if is_schem then
