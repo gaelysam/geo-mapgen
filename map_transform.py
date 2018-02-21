@@ -50,6 +50,27 @@ def update_map(mapname, newfilepath, get_proj=None):
 			proj.ImportFromEPSG(epsg)
 			dataset.SetProjection(proj.ExportToWkt())
 
+def get_map_bounds(mapname):
+	if mapname in maps:
+		thismap = maps[mapname]
+	else:
+		print("Map", mapname, "does not exist.")
+		return
+	xsize, ysize = thismap.RasterXSize, thismap.RasterYSize
+	gt = thismap.GetGeoTransform()
+	proj = osr.SpatialReference()
+	proj.ImportFromWkt(thismap.GetProjection())
+	transform = osr.CreateCoordinateTransformation(proj, wgs)
+	minp = gm.transform(gt, (0, 0))
+	maxp = gm.transform(gt, (xsize, ysize))
+	xmin, ymin, _ = transform.TransformPoint(minp[0], minp[1])
+	xmax, ymax, _ = transform.TransformPoint(maxp[0], maxp[1])
+	north = max(ymin, ymax) # Maps might be reversed, so we're not sure which one is actually the maximum
+	east = max(xmin, xmax)
+	south = min(ymin, ymax)
+	west = min(xmin, xmax)
+	return (north, east, south, west)
+
 def get_map_size():
 	if param_reference in maps:
 		refmap = maps[param_reference]

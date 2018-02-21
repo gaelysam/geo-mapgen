@@ -130,6 +130,15 @@ south_entry = NumberEntry(frame_region, -90, 90, row=5, column=1, sticky="E", te
 hscale_entry = NumberEntry(frame_region, 0, 10000, row=6, column=0, text="Horizontal scale", is_float=True)
 map_size_label = tk.Label(frame_region, text="")
 
+def set_to_fullsize(*args):
+	north, east, south, west = map_transform.get_map_bounds("heightmap")
+	north_entry.set(north)
+	east_entry.set(east)
+	south_entry.set(south)
+	west_entry.set(west)
+fullsize_button = tk.Button(frame_region, text="Full map size", command=set_to_fullsize)
+fullsize_button.grid(row=0, column=1, rowspan=3, columnspan=3, sticky="S")
+
 region_gui_update()
 
 def update_parameters():
