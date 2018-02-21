@@ -266,7 +266,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 	vm:set_data(data)
 	for _, params in ipairs(schems_to_generate) do
-		print("Placing schematic " .. params.schem)
 		minetest.place_schematic_on_vmanip(vm, params.pos, params.schem, "random", nil, false) -- Place schematics
 	end
 	vm:set_lighting({day = 0, night = 0})

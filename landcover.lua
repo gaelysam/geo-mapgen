@@ -28,12 +28,10 @@ for _, deco_raw in ipairs(decolist) do
 	if decotype == "schem" then
 		is_schem = true
 		for n, item in ipairs(list) do
-			print(item)
 			if #item > 0 then
 				if item:sub(1,1) == "@" then
 					local slash_pos = item:find("%/")
 					local modname = item:sub(2,slash_pos-1)
-					print(modname)
 					item = minetest.get_modpath(modname) .. item:sub(slash_pos,-1)
 				end
 				itemlist[n] = item
@@ -42,7 +40,6 @@ for _, deco_raw in ipairs(decolist) do
 	elseif decotype == "node" then
 		for n, item in ipairs(list) do
 			if #item > 0 then
-				print(item)
 				itemlist[n] = id(item)
 			end
 		end
