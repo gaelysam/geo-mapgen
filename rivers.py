@@ -4,7 +4,8 @@ import numpy as np
 sys.setrecursionlimit(65536)
 
 def generate_rivermap(heightmap, sea_level=128, river_limit=1000, max_river_hdiff=40, river_power=0.25):
-	print("[rivers]: Finding start points")
+	print("Generating rivermap")
+	print("[rivers] Finding start points")
 
 	(Y, X) = heightmap.shape
 	visited = np.zeros((Y,X), dtype=bool)
@@ -48,12 +49,12 @@ def generate_rivermap(heightmap, sea_level=128, river_limit=1000, max_river_hdif
 
 	del seas
 
-	print("Found", str(len(start_points)), "start points")
+	print("[rivers] Found", str(len(start_points)), "start points")
 
 	heap = start_points[:]
 	heapify(heap)
 
-	print("Building river trees:", str(to_explore), "points to visit")
+	print("[rivers] Building river trees:", str(to_explore), "points to visit")
 
 	flow_dirs = np.zeros((Y, X), dtype=np.int8)
 
@@ -88,12 +89,12 @@ def generate_rivermap(heightmap, sea_level=128, river_limit=1000, max_river_hdif
 		t = heappop(heap)
 		to_explore -= 1
 		if to_explore % 1000000 == 0:
-			print(str(to_explore // 1000000), "× 10⁶ points remaining", "Altitude:", int(t[0]), "Queue:", len(heap))
+			print("[rivers]", str(to_explore // 1000000), "× 10⁶ points remaining", "Altitude:", int(t[0]), "Queue:", len(heap))
 		process_neighbors(t[1], t[2])
 
 	visited = None
 
-	print("Calculating water quantity")
+	print("[rivers] Calculating water quantity")
 
 	waterq = np.ones((Y, X))
 	river_array = np.zeros((Y, X), dtype=bool)
@@ -140,7 +141,7 @@ def generate_rivermap(heightmap, sea_level=128, river_limit=1000, max_river_hdif
 		if water > maxwater:
 			maxwater = water
 
-	print("Maximal water quantity:", str(maxwater))
+	print("[rivers] Maximal water quantity:", str(maxwater))
 
 	flow_dirs = None
 

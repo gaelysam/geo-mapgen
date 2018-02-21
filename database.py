@@ -74,19 +74,24 @@ def layer(data, datamap, datatype, frag, meta=b""): # Add a layer
 
 def generate(file_output, file_conf, heightmap, rivermap=None, landmap=None, landmap_legend=None, frag=80, scale=40):
 	global table_size
+	print("Generating database")
 
 	(Y, X) = heightmap.shape
 
 	data = io.BytesIO() # This allows faster concatenation
 
+	print("Adding heightmap")
 	layer(data, heightmap, 0, frag)
 
 	if type(rivermap) is not type(None):
+		print("Adding rivermap")
 		layer(data, rivermap, 1, frag)
 
 	if type(landmap) is not type(None):
+		print("Adding landcover")
 		layer(data, landmap, 2, frag, meta=landmap_legend.encode())
 
+	print("Writing file")
 	# Build file header
 	header = b'GEOMG' + version + le(np.uint16(frag)) + le(np.uint16(X)) + le(np.uint16(Y)) + le(np.uint8(layer_count))
 

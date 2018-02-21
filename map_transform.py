@@ -89,6 +89,7 @@ def read_map(mapname, interp=gdal.GRA_NearestNeighbour):
 		print("Map", mapname, "does not exist.")
 		return
 
+	print("Reading", mapname)
 	if param_reproject:
 		proj = mercator
 		transform = merc_transform
@@ -108,5 +109,6 @@ def read_map(mapname, interp=gdal.GRA_NearestNeighbour):
 			
 	map2 = drv.Create("", npx, npy, 1, map1.GetRasterBand(1).DataType)
 	map2.SetGeoTransform(geotransform)
+	print("Reprojecting", mapname)
 	gdal.ReprojectImage(map1, map2, map1.GetProjection(), proj.ExportToWkt(), interp)
 	return map2.ReadAsArray()
