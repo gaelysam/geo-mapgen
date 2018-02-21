@@ -172,8 +172,8 @@ landcover_cb_var.trace("w", landcover_gui_update)
 landcover_cb = tk.Checkbutton(frame_landcover, text="Enable Land Cover", variable=landcover_cb_var)
 landcover_cb.grid(row=0, column=0)
 
-landcover_input_entry = FileEntry(frame_landcover, "file", row=1, column=0, dialog_text="Open land cover image")
-landcover_legend_entry = FileEntry(frame_landcover, "file", row=2, column=0, dialog_text="Open land cover legend")
+landcover_input_entry = FileEntry(frame_landcover, "file", row=1, column=0, text="Land cover image", dialog_text="Open land cover image")
+landcover_legend_entry = FileEntry(frame_landcover, "file", row=2, column=0, text="Land cover legend file", dialog_text="Open land cover legend")
 landcover_input_entry.trace("w", get_update_callback(landcover_input_entry, "landcover"))
 
 landcover_gui_update()
