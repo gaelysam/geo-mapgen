@@ -30,7 +30,7 @@ for _, biome_raw in ipairs(biomelist) do
 		biome.filler = id(fill[1])
 		biome.filler_depth = tonumber(fill[2] or 1) + biome.top_depth -- Depth is cumulative
 	else
-		biome.filler_depth = 0
+		biome.filler_depth = biome.top_depth
 	end
 	if stone and #stone > 0 then
 		biome.stone = id(stone)
