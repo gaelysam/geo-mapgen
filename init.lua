@@ -137,6 +137,19 @@ for l=1, layer_count do
 	file:seek("cur", data_size) -- Skip data and go to the position of the next layer
 end
 
+local function choose_deco(decos)
+	local r = math.random()
+	for _, deco_params in ipairs(decos) do
+		local prob = deco_params.prob
+		if r < prob then
+			local deco = deco_params.deco
+			return deco.list[math.random(#deco.list)], deco.is_schem
+		else
+			r = r - prob
+		end
+	end
+end
+
 local data = {}
 
 minetest.register_on_mapgen_init(function(mgparams)
@@ -174,6 +187,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local a = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
 	local ystride = a.ystride
 
+	local schems_to_generate = {}
+
 	for x = xmin, xmax do
 	for z = zmin, zmax do
 		local ivm = a:index(x, minp.y, z)
@@ -199,6 +214,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			end
 			local stone, filler, top = c_stone, c_dirt, c_lawn
 			local nfiller, ntop = 3, 1
+			local node_deco
 			if biomes then
 				biome = biome_list[value(biomemap, nchunk, npx)]
 				if biome then
@@ -207,6 +223,16 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					top = biome.top
 					nfiller = biome.filler_depth
 					ntop = biome.top_depth
+					if maxp.y >= h then -- Generate decoration
+						local deco, is_schem = choose_deco(biome.decos)
+						if deco then
+							if is_schem then
+								table.insert(schems_to_generate, {pos={x=x-2,y=h+1,z=z-2}, schem=deco}) -- Schem size is not known. Assuming that most of schematics have a size of 5, hardcode offset to 2. TODO: Change that when schematic flags will be available on minetest.place_schematic_on_vmanip
+							else
+								node_deco = deco
+							end
+						end
+					end
 				end
 			end
 
@@ -231,11 +257,18 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				data[ivm] = node
 				ivm = ivm + ystride
 			end
+			if node_deco then
+				data[ivm] = node_deco
+			end
 		end
 	end
 	end
 
 	vm:set_data(data)
+	for _, params in ipairs(schems_to_generate) do
+		print("Placing schematic " .. params.schem)
+		minetest.place_schematic_on_vmanip(vm, params.pos, params.schem, "random", nil, false) -- Place schematics
+	end
 	vm:set_lighting({day = 0, night = 0})
 	vm:calc_lighting()
 	vm:update_liquids()
