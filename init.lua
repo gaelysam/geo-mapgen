@@ -207,7 +207,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 		local h = math.floor(value(heightmap, nchunk, npx) / scale)
 
-		if minp.y <= h then
+		if minp.y <= math.max(h,0) then
 			local river_here = false
 			if rivers then
 				river_here = value(rivermap, nchunk, npx) > 0
@@ -215,8 +215,9 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local stone, filler, top = c_stone, c_dirt, c_lawn
 			local nfiller, ntop = 3, 1
 			local node_deco
-			if biomes then
-				biome = biome_list[value(biomemap, nchunk, npx)]
+			if biomes and h >= 0 then
+				nbiome = value(biomemap, nchunk, npx)
+				biome = biome_list[nbiome]
 				if biome then
 					stone = biome.stone
 					filler = biome.filler
@@ -236,29 +237,54 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				end
 			end
 
-			for y = minp.y, math.min(math.max(h, 0), maxp.y) do
-				local node
-				local hdiff = h - y
-				if hdiff < nfiller then
-					if hdiff < ntop and y >= 0 then
-						if river_here and y == h then
-							node = c_rwater
-						else
-							node = top
-						end
-					elseif y > h then
-						node = c_water
-					else
-						node = filler
-					end
-				else
-					node = stone
-				end
-				data[ivm] = node
-				ivm = ivm + ystride
+			if h < 0 then
+				top = filler
 			end
-			if node_deco then
+
+			local stone_min = minp.y
+			local stone_max = math.min(h-nfiller, maxp.y)
+			local filler_min = math.max(stone_max+1, minp.y)
+			local filler_max = math.min(h-ntop, maxp.y)
+			local top_min = math.max(filler_max+1, minp.y)
+			local top_max = h
+
+			if river_here then
+				top_max = h-1
+			end
+
+			if stone_min <= stone_max then
+				for y = stone_min, stone_max do
+					data[ivm] = stone
+					ivm = ivm + ystride
+				end
+			end
+
+			if filler_min <= filler_max then
+				for y = filler_min, filler_max do
+					data[ivm] = filler
+					ivm = ivm + ystride
+				end
+			end
+
+			if top_min <= top_max then
+				for y = top_min, top_max do
+					data[ivm] = top
+					ivm = ivm + ystride
+				end
+			end
+
+			if river_here then
+				data[ivm] = c_rwater
+				ivm = ivm + ystride
+			elseif node_deco and h >= 0 then
 				data[ivm] = node_deco
+			end
+
+			if h < 0 then
+				for y = math.max(h+1, minp.y), math.min(0, maxp.y) do
+					data[ivm] = c_water
+					ivm = ivm + ystride
+				end
 			end
 		end
 	end
