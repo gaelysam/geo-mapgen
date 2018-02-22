@@ -80,6 +80,8 @@ def generate(file_output, file_conf, heightmap, rivermap=None, landmap=None, lan
 
 	data = io.BytesIO() # This allows faster concatenation
 
+	heightmap //= scale
+
 	print("Adding heightmap")
 	layer(data, heightmap, 0, frag)
 
@@ -99,7 +101,7 @@ def generate(file_output, file_conf, heightmap, rivermap=None, landmap=None, lan
 	file_output.write(header + data.getbuffer())
 	file_output.close()
 
-	file_conf.write("scale = " + str(scale))
+	file_conf.write("scale = 1")
 	file_conf.close()
 
 	print("Done.")
