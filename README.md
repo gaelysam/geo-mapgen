@@ -37,7 +37,7 @@ You also need to write a legend file, to decode the map. Geo Mapgen can't know w
 14	fields
 15	fields
 ```
-Every line mean that one value in the data (for example 10) matches a particular land cover type recognized by Geo Mapgen (in this case "grass"). You need to find the legend of the map, and decide in which category every legend entry fits the most, and write the file. I've already written it for Corine Land Cover, in `clc.lct` (these are the 15 first lines), I can do it for other land cover maps if you kindly ask me ;)
+Every line mean that one value in the data (for example 10) matches a particular land cover type recognized by Geo Mapgen (in this case "grass"). You need to find the legend of the map, and decide in which category every legend entry fits the most, and write the file. I've already written it for Corine Land Cover and MODIS, you can find these files in `Land cover tables/`. I can do it for other land cover maps if you kindly ask me ;)
 
 List of biomes and land covers currectly supported by Geo Mapgen:
 - industrial
