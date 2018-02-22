@@ -1,10 +1,13 @@
 #Name,Type,Node/Schematic 1,Node/Schematic 2,…,,
 grass,node,default:grass_1,default:grass_2,default:grass_3,default:grass_4,default:grass_5
 dry_grass,node,default:dry_grass_1,default:dry_grass_2,default:dry_grass_3,default:dry_grass_4,default:dry_grass_5
+junglegrass,node,default:junglegrass,,,,
 fern,node,default:fern_1,default:fern_2,default:fern_3,,
 wheat,node,farming:wheat_5,farming:wheat_6,farming:wheat_7,farming:wheat_8,
+dry_shrub,node,default:dry_shrub,,,,
 bush,schem,@default/schematics/bush.mts,,,,
 dry_bush,schem,@default/schematics/acacia_bush.mts,,,,
 tree,schem,@default/schematics/apple_tree.mts,,,,
 aspen_tree,schem,@default/schematics/aspen_tree.mts,,,,
 pine_tree,schem,@default/schematics/pine_tree.mts,,,,
+jungletree,schem,@default/schematics/jungle_tree.mts,,,,

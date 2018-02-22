@@ -1,6 +1,6 @@
 0	sea
 1	coniferous_forest
-2	deciduous_forest
+2	rainforest
 3	coniferous_forest
 4	deciduous_forest
 5	mixed_forest
@@ -14,4 +14,4 @@
 13	urban
 14	meadow
 15	ice
-16	gravel
+16	desert
