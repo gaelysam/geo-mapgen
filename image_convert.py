@@ -230,7 +230,7 @@ river_input_entry.trace("w", get_update_callback(river_input_entry, "rivermap"))
 rivermode_rb2 = tk.Radiobutton(frame_rivers, text="Calculate in-place (slow)", variable=rivermode_rb_var, value=0)
 rivermode_rb2.grid(row=2, column=0, rowspan=4)
 
-river_limit_entry = NumberEntry(frame_rivers, 0, 1e6, incr=50, row=2, column=1, text="Minimal catchment area", default=1000)
+river_limit_entry = NumberEntry(frame_rivers, 0, 1e6, incr=50, row=2, column=1, text="Minimal drainage basin", default=1000)
 river_hdiff_entry = NumberEntry(frame_rivers, 0, 100, row=3, column=1, text="Maximal height difference", default=40, is_float=True)
 river_power_entry = NumberEntry(frame_rivers, 0, 2, incr=0.05, row=4, column=1, text="River widening power", default=0.25, is_float=True)
 sea_level_entry = NumberEntry(frame_rivers, -32768, 65535, row=5, column=1, text="Sea level", default=-128)
