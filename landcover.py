@@ -1,9 +1,9 @@
 import numpy as np
 
-index_dtype = np.dtype([("i", "u1"), ("biome", "U64")])
+index_dtype = np.dtype([("i", "u1"), ("biome", "S64")])
 def make_landcover(datamap, index_file):
 	index_raw = np.loadtxt(index_file, dtype=index_dtype)
-	index_full = np.zeros(256, dtype=np.dtype("U64"))
+	index_full = np.zeros(256, dtype=np.dtype("S64"))
 	index_full[index_raw["i"]] = index_raw["biome"]
 	values = np.unique(datamap)
 
@@ -23,4 +23,5 @@ def make_landcover(datamap, index_file):
 			blist.append(biome)
 			num_index[value] = i
 			i += 1
-	return num_index[datamap], ','.join(blist)
+	meta = b','.join(blist)
+	return num_index[datamap], meta

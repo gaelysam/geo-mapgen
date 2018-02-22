@@ -89,7 +89,7 @@ def generate(file_output, file_conf, heightmap, rivermap=None, landmap=None, lan
 
 	if type(landmap) is not type(None):
 		print("Adding landcover")
-		layer(data, landmap, 2, frag, meta=landmap_legend.encode())
+		layer(data, landmap, 2, frag, meta=landmap_legend)
 
 	print("Writing file")
 	# Build file header
