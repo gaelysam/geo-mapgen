@@ -228,7 +228,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 						local deco, is_schem = choose_deco(biome.decos)
 						if deco then
 							if is_schem then
-								table.insert(schems_to_generate, {pos={x=x-2,y=h+1,z=z-2}, schem=deco}) -- Schem size is not known. Assuming that most of schematics have a size of 5, hardcode offset to 2. TODO: Change that when schematic flags will be available on minetest.place_schematic_on_vmanip
+								table.insert(schems_to_generate, {pos={x=x,y=h+1,z=z}, schem=deco})
 							else
 								node_deco = deco
 							end
@@ -292,7 +292,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 	vm:set_data(data)
 	for _, params in ipairs(schems_to_generate) do
-		minetest.place_schematic_on_vmanip(vm, params.pos, params.schem, "random", nil, false) -- Place schematics
+		minetest.place_schematic_on_vmanip(vm, params.pos, params.schem, "random", nil, false, "place_center_x,place_center_z") -- Place schematics
 	end
 	vm:set_lighting({day = 0, night = 0})
 	vm:calc_lighting()
