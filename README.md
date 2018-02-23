@@ -6,6 +6,8 @@ It is somewhat like [realterrain](https://forum.minetest.net/viewtopic.php?f=11&
 ![Grand Canyon](https://user-images.githubusercontent.com/6905002/35072311-511f42e2-fbe4-11e7-839d-fbf2140e292a.png)
 
 ## Generating a map
+Using the latest development version of Minetest (0.5.0-dev) is highly recommended, especially if you enable land cover.
+
 ### Finding data
 This program doesn't come with pre-loaded geographical data, it only provides the tools to use them. You need to find your data on the Internet. All needs to be in an image format (usually GeoTIFF). The only mandatory data set is the topographical map, but you can also use additional maps for land cover or rivers.
 
