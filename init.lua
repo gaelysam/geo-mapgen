@@ -7,7 +7,7 @@ local modpath = minetest.get_modpath(minetest.get_current_modname())
 file = io.open(worldpath .. "/" .. path)
 local conf = Settings(worldpath .. "/" .. conf_path)
 
-local scale = conf:get("scale") or 40
+local scale = conf:get("scale") or 1
 local remove_delay = 10 -- Number of mapgen calls until a chunk is unloaded
 
 local function parse(str, signed) -- little endian
