@@ -216,8 +216,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local nfiller, ntop = 3, 1
 			local node_deco
 			if biomes and h >= 0 then
-				nbiome = value(biomemap, nchunk, npx)
-				biome = biome_list[nbiome]
+				local nbiome = value(biomemap, nchunk, npx)
+				local biome = biome_list[nbiome]
 				if biome then
 					stone = biome.stone
 					filler = biome.filler
@@ -246,10 +246,10 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local filler_min = math.max(stone_max+1, minp.y)
 			local filler_max = math.min(h-ntop, maxp.y)
 			local top_min = math.max(filler_max+1, minp.y)
-			local top_max = h
+			local top_max = math.min(h, maxp.y)
 
 			if river_here then
-				top_max = h-1
+				top_max = math.min(h-1, maxp.y)
 			end
 
 			if stone_min <= stone_max then

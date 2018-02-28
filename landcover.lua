@@ -57,7 +57,7 @@ for _, biome_raw in ipairs(biomelist) do
 	if top and #top > 0 then
 		top = top:split("%s", false, 1, true)
 		biome.top = id(top[1])
-		biome.top_depth = tonumber(fill[2] or 1)
+		biome.top_depth = tonumber(top[2] or 1)
 	else
 		biome.top_depth = 0
 	end
