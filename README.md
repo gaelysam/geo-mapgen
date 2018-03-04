@@ -114,6 +114,24 @@ Geo Mapgen can calculate automatically the positions of rivers with the elevatio
 
 Be aware that rivers calculation can be *very* slow (around 15 minutes for a 6000x6000 map).
 
+## Configuration file
+A config file `heightmap.dat.conf` is generated in the world directory. It has the same syntax than `minetest.conf`, and currently supports 6 parameters:
+- `scale_x`, `scale_y`, scale_z`: set the scale for each axis. Size of objects is **divided** by this value.
+- `offset_x`, `offset_y`, `offset_z`: Offset of the world rectangle in nodes.
+
+For example if you have generated a map with a resolution of 100 meters by pixel, and you set this in `heightmap.dat.conf`:
+```
+scale_x = 2
+scale_y = 2
+scale_z = 2
+offset_x = -500
+offset_y = 10
+offset_z = 1000
+```
+Then geo mapgen will generate a map with 200 meters per node in each direction, with the upper left corner at (-500, 1000) and the sea level at 10.
+
+Please note that this rescaling does not perform interpolation.
+
 ## Additional information
 Distributed under the GNU Lesser General Public License, version 2.1.
 Code by Gael-de-Sailly (Gaël C.)

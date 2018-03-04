@@ -7,7 +7,14 @@ local modpath = minetest.get_modpath(minetest.get_current_modname())
 file = io.open(worldpath .. "/" .. path)
 local conf = Settings(worldpath .. "/" .. conf_path)
 
-local scale = conf:get("scale") or 1
+-- Configuration
+local scale_x = tonumber(conf:get("scale_x")) or 1
+local scale_y = tonumber(conf:get("scale_y")) or conf:get("scale") or 1
+local scale_z = tonumber(conf:get("scale_z")) or 1
+local offset_x = tonumber(conf:get("offset_x")) or 0
+local offset_y = tonumber(conf:get("offset_y")) or 0
+local offset_z = tonumber(conf:get("offset_z")) or 0
+
 local remove_delay = 10 -- Number of mapgen calls until a chunk is unloaded
 
 local function parse(str, signed) -- little endian
@@ -36,6 +43,12 @@ local X = parse(file:read(2))
 local Z = parse(file:read(2))
 local chunks_x = math.ceil(X / frag) -- Number of chunks along X axis
 local chunks_z = math.ceil(Z / frag) -- Number of chunks along Z axis
+
+local xmin = math.ceil(offset_x)
+local xmax = math.floor(X/scale_x+offset_x)
+local zmin = math.ceil(-Z/scale_z+offset_z)
+local zmax = math.floor(offset_z)
+print(xmin, xmax, zmin, zmax)
 
 local last_chunk_length = (X-1) % frag + 1 -- Needed for incrementing index because last chunk may be truncated in length and therefore need an unusual increment
 
@@ -177,11 +190,6 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	local c_water = minetest.get_content_id("default:water_source")
 	local c_rwater = minetest.get_content_id("default:river_water_source")
 
-	local xmin = math.max(minp.x, 0)
-	local xmax = math.min(maxp.x, X-1)
-	local zmin = math.max(minp.z, -Z+1) -- Reverse Z coordinates
-	local zmax = math.min(maxp.z, 0)
-
 	local vm, emin, emax = minetest.get_mapgen_object("voxelmanip")
 	vm:get_data(data)
 	local a = VoxelArea:new({MinEdge = emin, MaxEdge = emax})
@@ -189,25 +197,28 @@ minetest.register_on_generated(function(minp, maxp, seed)
 
 	local schems_to_generate = {}
 
-	for x = xmin, xmax do
-	for z = zmin, zmax do
+	for x = math.max(xmin, minp.x), math.min(xmax, maxp.x) do
+	for z = math.max(zmin, minp.z), math.min(zmax, maxp.z) do
 		local ivm = a:index(x, minp.y, z)
 
-		local xchunk = math.floor(x / frag)
-		local zchunk = math.floor(-z / frag)
+		local xmap = math.floor((x-offset_x) * scale_x)
+		local zmap = math.floor((z-offset_z) * scale_z)
+
+		local xchunk = math.floor(xmap / frag)
+		local zchunk = math.floor(-zmap / frag)
 		local nchunk = xchunk + zchunk * chunks_x + 1
 		
 		local increment = frag
 		if xchunk + 1 == chunks_x then -- Last chunk of the line: may be truncated, that would change the line increment.
 			increment = last_chunk_length
 		end
-		local xpx = x % frag
-		local zpx = -z % frag
+		local xpx = xmap % frag
+		local zpx = -zmap % frag
 		local npx = xpx + zpx * increment + 1 -- Increment is used here
 
-		local h = math.floor(value(heightmap, nchunk, npx) / scale)
+		local h = math.floor(value(heightmap, nchunk, npx) / scale_y + offset_y)
 
-		if minp.y <= math.max(h,0) then
+		if minp.y <= math.max(h,offset_y) then
 			local river_here = false
 			if rivers then
 				river_here = value(rivermap, nchunk, npx) > 0
@@ -215,7 +226,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			local stone, filler, top = c_stone, c_dirt, c_lawn
 			local nfiller, ntop = 3, 1
 			local node_deco
-			if biomes and h >= 0 then
+			if biomes and h >= offset_y then
 				local nbiome = value(biomemap, nchunk, npx)
 				local biome = biome_list[nbiome]
 				if biome then
@@ -237,7 +248,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				end
 			end
 
-			if h < 0 then
+			if h < offset_y then
 				top = filler
 			end
 
@@ -280,8 +291,8 @@ minetest.register_on_generated(function(minp, maxp, seed)
 				data[ivm] = node_deco
 			end
 
-			if h < 0 then
-				for y = math.max(h+1, minp.y), math.min(0, maxp.y) do
+			if h < offset_y then
+				for y = math.max(h+1, minp.y), math.min(offset_y, maxp.y) do
 					data[ivm] = c_water
 					ivm = ivm + ystride
 				end

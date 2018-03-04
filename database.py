@@ -101,7 +101,7 @@ def generate(file_output, file_conf, heightmap, rivermap=None, landmap=None, lan
 	file_output.write(header + data.getbuffer())
 	file_output.close()
 
-	file_conf.write("scale = 1")
+	file_conf.write("scale_y = 1")
 	file_conf.close()
 
 	print("Done.")
