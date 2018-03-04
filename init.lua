@@ -15,6 +15,21 @@ local offset_x = tonumber(conf:get("offset_x")) or 0
 local offset_y = tonumber(conf:get("offset_y")) or 0
 local offset_z = tonumber(conf:get("offset_z")) or 0
 
+local function get_bool(name)
+	local v = conf:get_bool(name)
+	if v == nil then
+		return true -- Enable by default, disable only if explicitly set to false
+	end
+	return false
+end
+
+local enable_rivers = get_bool("rivers")
+local enable_landcover = get_bool("landcover")
+local enable_trees = get_bool("trees")
+local enable_plants = get_bool("plants")
+
+print(enable_rivers, enable_landcover, enable_trees, enable_plants)
+
 local remove_delay = 10 -- Number of mapgen calls until a chunk is unloaded
 
 local function parse(str, signed) -- little endian
@@ -133,11 +148,11 @@ for l=1, layer_count do
 	elseif datatype == 1 then
 		print("Rivermap enabled!")
 		rivermap = layer
-		rivers = true
+		rivers = enable_rivers
 	elseif datatype == 2 then
 		print("Biomemap enabled!")
 		biomemap = layer
-		biomes = true
+		biomes = enable_landcover
 
 		local biomes_by_name = dofile(modpath .. "/landcover.lua") -- Load biome descriptions
 		local biomenames = meta:split(',', true)
@@ -235,11 +250,13 @@ minetest.register_on_generated(function(minp, maxp, seed)
 					top = biome.top
 					nfiller = biome.filler_depth
 					ntop = biome.top_depth
-					if maxp.y >= h and not river_here then -- Generate decoration
+					if enable_plants and maxp.y >= h and not river_here then -- Generate decoration
 						local deco, is_schem = choose_deco(biome.decos)
 						if deco then
 							if is_schem then
-								table.insert(schems_to_generate, {pos={x=x-2,y=h+1,z=z-2}, schem=deco}) -- Schem size is not known. Assuming that most of schematics have a size of 5, hardcode offset to 2. TODO: Change that when schematic flags will be available on minetest.place_schematic_on_vmanip
+								if enable_trees then
+									table.insert(schems_to_generate, {pos={x=x-2,y=h+1,z=z-2}, schem=deco}) -- Schem size is not known. Assuming that most of schematics have a size of 5, hardcode offset to 2. TODO: Change that when schematic flags will be available on minetest.place_schematic_on_vmanip
+								end
 							else
 								node_deco = deco
 							end
@@ -287,7 +304,7 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			if river_here then
 				data[ivm] = c_rwater
 				ivm = ivm + ystride
-			elseif node_deco and h >= 0 then
+			elseif node_deco and h >= offset_y then
 				data[ivm] = node_deco
 			end
 

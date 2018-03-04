@@ -115,9 +115,13 @@ Geo Mapgen can calculate automatically the positions of rivers with the elevatio
 Be aware that rivers calculation can be *very* slow (around 15 minutes for a 6000x6000 map).
 
 ## Configuration file
-A config file `heightmap.dat.conf` is generated in the world directory. It has the same syntax than `minetest.conf`, and currently supports 6 parameters:
+A config file `heightmap.dat.conf` is generated in the world directory. It has the same syntax than `minetest.conf`, and currently supports the following parameters:
 - `scale_x`, `scale_y`, scale_z`: set the scale for each axis. Size of objects is **divided** by this value.
 - `offset_x`, `offset_y`, `offset_z`: Offset of the world rectangle in nodes.
+- `rivers`: Enable or disable land cover. Default to `true`.
+- `landcover`: Enable or disable land cover.
+- `plants`: Enable or disable decorations (grass, ferns, trees etc.)
+- `trees`: Enable or disable schematic decorations (trees)
 
 For example if you have generated a map with a resolution of 100 meters by pixel, and you set this in `heightmap.dat.conf`:
 ```
