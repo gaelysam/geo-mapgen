@@ -28,8 +28,6 @@ local enable_landcover = get_bool("landcover")
 local enable_trees = get_bool("trees")
 local enable_plants = get_bool("plants")
 
-print(enable_rivers, enable_landcover, enable_trees, enable_plants)
-
 local remove_delay = 10 -- Number of mapgen calls until a chunk is unloaded
 
 local function parse(str, signed) -- little endian
@@ -63,7 +61,6 @@ local xmin = math.ceil(offset_x)
 local xmax = math.floor(X/scale_x+offset_x)
 local zmin = math.ceil(-Z/scale_z+offset_z)
 local zmax = math.floor(offset_z)
-print(xmin, xmax, zmin, zmax)
 
 local last_chunk_length = (X-1) % frag + 1 -- Needed for incrementing index because last chunk may be truncated in length and therefore need an unusual increment
 
