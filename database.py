@@ -37,9 +37,21 @@ def le(n):
 layer_count = 0
 
 def layer(data, datamap, datatype, frag, meta=b""): # Add a layer
-	dtype = datamap.dtype
-	itemsize = dtype.itemsize
-	signed = dtype.kind == "i"
+	dmin = int(np.floor(datamap.min()))
+	dmax = int(np.floor(datamap.max()))
+	signed = dmin < 0
+	letter = "i" if signed else "u"
+	absmax = max(dmax, -dmin-1)
+	if absmax < 0x100:
+		itemsize = 1
+	elif absmax < 0x10000:
+		itemsize = 2
+	elif absmax < 0x100000000:
+		itemsize = 4
+	else:
+		itemsize = 8
+
+	datamap = datamap.astype("<"+letter+str(itemsize))
 
 	(Y, X) = datamap.shape
 
