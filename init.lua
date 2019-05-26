@@ -30,30 +30,20 @@ local enable_plants = get_bool("plants")
 
 local remove_delay = 10 -- Number of mapgen calls until a chunk is unloaded
 
-local function parse(str, signed) -- little endian
-	local bytes = {str:byte(1, -1)}
-	local n = 0
-	local byte_val = 1
-	for _, byte in ipairs(bytes) do
-		n = n + (byte * byte_val)
-		byte_val = byte_val * 256
-	end
-	if signed and n >= byte_val / 2 then
-		return n - byte_val
-	end
-	return n
-end
+local num = dofile(modpath .. "/" .. "readnumber.lua")
+local readn = num.readnumber
 
 if file:read(5) ~= "GEOMG" then
 	print('[geo_mapgen] WARNING: file may not be in the appropriate format. Signature "GEOMG" not recognized.')
 end
 
-local version = parse(file:read(1))
+local version = readn(file:read(1), num.uint8)
+print(version)
 
 -- Geometry stuff
-local frag = parse(file:read(2))
-local X = parse(file:read(2))
-local Z = parse(file:read(2))
+local frag = readn(file:read(2), num.uint16)
+local X = readn(file:read(2), num.uint16)
+local Z = readn(file:read(2), num.uint16)
 local chunks_x = math.ceil(X / frag) -- Number of chunks along X axis
 local chunks_z = math.ceil(Z / frag) -- Number of chunks along Z axis
 
@@ -98,31 +88,53 @@ local biomemap = nil
 local biomes = false
 local biome_list = {}
 
--- Layers
-local layers = {}
-local layer_count = parse(file:read(1))
-for l=1, layer_count do
-	local datatype = parse(file:read(1)) -- Type of data: 0 = heightmap, 1 = rivermap
-	local itemsize_raw = parse(file:read(1))
-	local signed = false
-	local itemsize = itemsize_raw
-	if itemsize >= 16 then
-		signed = true
-		itemsize = itemsize_raw - 16
-	end
+-- Projection parameters
+local proj, geotransform
+if version >= 2 then
+	local proj_length = readn(file:read(2), num.uint16)
+	print(proj_length)
+	proj = file:read(proj_length)
+	local geotransform_raw = file:read(48)
+	print(geotransform_raw:byte(1, 48))
+	geotransform = {readn(geotransform_raw, num.float64)}
+	print(unpack(geotransform))
+end
 
-	local index_length = parse(file:read(4))
+-- Layers
+local datatypes = {
+	[0x01] = num.uint8,
+	[0x02] = num.uint16,
+	[0x04] = num.uint32,
+	[0x08] = num.uint64,
+	[0x11] = num.int8,
+	[0x12] = num.int16,
+	[0x14] = num.int32,
+	[0x18] = num.int64,
+	[0x22] = num.float16,
+	[0x24] = num.float32,
+	[0x28] = num.float64,
+}
+
+local layers = {}
+local layer_count = readn(file:read(1), num.uint8)
+for l=1, layer_count do
+	local layertype = readn(file:read(1), num.uint8) -- Type of data: 0 = heightmap, 1 = rivermap
+	local byte = file:read(1)
+	print(byte:byte())
+	local ndatatype = readn(byte, num.uint8)
+	print(ndatatype)
+	local datatype = datatypes[ndatatype]
+	local itemsize = datatype[1]
+
+	local index_length = readn(file:read(4), num.uint32)
 	local meta = ""
 	if version >= 1 then
-		local meta_length = parse(file:read(2))
+		local meta_length = readn(file:read(2), num.uint16)
 		meta = file:read(meta_length)
 	end
 
-	local index_raw = minetest.decompress(file:read(index_length))
-	local index = {[0] = 0} -- Variable is called index instead of table to avoid name conflicts. Will contain a list of the ending position for every chunk, begin at chunk 1, so (unexisting) chunk 0 would end at pos 0. This makes simpler the calculation of chunk size that is index[i] - index[i-1] even for i=1.
-	for i=1, #index_raw / 4 do
-		index[i] = parse(index_raw:sub(i*4-3, i*4))
-	end
+	local index = {readn(minetest.decompress(file:read(index_length)), num.uint32)}
+	index[0] = 0 -- Variable is called index instead of table to avoid name conflicts. Will contain a list of the ending position for every chunk, begin at chunk 1, so (unexisting) chunk 0 would end at pos 0. This makes simpler the calculation of chunk size that is index[i] - index[i-1] even for i=1.
 
 	local delay = {} -- Delay table, will contain the number of mapgen calls before unloading, for every loaded chunk
 	delays[l] = delay
@@ -131,7 +143,7 @@ for l=1, layer_count do
 		delay = delay,
 		offset = file:seek(), -- Position of first data
 		itemsize = itemsize,
-		signed = signed,
+		datatype = datatype,
 		index = index,
 		meta = meta,
 	}
@@ -140,13 +152,13 @@ for l=1, layer_count do
 
 	setmetatable(layer, mt)
 
-	if datatype == 0 then -- Code for heightmap
+	if layertype == 0 then -- Code for heightmap
 		heightmap = layer
-	elseif datatype == 1 then
+	elseif layertype == 1 then
 		print("Rivermap enabled!")
 		rivermap = layer
 		rivers = enable_rivers
-	elseif datatype == 2 then
+	elseif layertype == 2 then
 		print("Biomemap enabled!")
 		biomemap = layer
 		biomes = enable_landcover
@@ -189,7 +201,7 @@ local time_sum2 = 0
 -- Decode the value of a chunk for a given pixel
 local function value(layer, nchunk, n)
 	local itemsize = layer.itemsize
-	return parse(layer[nchunk]:sub((n-1)*itemsize + 1, n*itemsize), layer.signed)
+	return readn(layer[nchunk]:sub((n-1)*itemsize + 1, n*itemsize), layer.datatype)
 end
 
 minetest.register_on_generated(function(minp, maxp, seed)

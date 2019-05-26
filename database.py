@@ -1,5 +1,6 @@
 import numpy as np
 import zlib
+from osgeo import osr, gdal
 import io
 
 # Database structure: (all is little endian)
@@ -9,11 +10,14 @@ import io
 # 	6-7	Fragmentation
 # 	8-9	Horizontal size in px
 # 	10-11	Vertical size in px
-#	12	Number of layers
+#	12-13	Length of projection descriptor
+#	14-A	Projection descriptor (Proj-4 format)
+#	A+1-48	Geotransform (6 floats)
+#	A+49	Number of layers
 # LAYER1:
 #	HEADER:
-#		0	Data type
-#		1	Bytes per point (+16 if signed)
+#		0	Layer type
+#		1	Number type (see below)
 #		2-5	Length of table
 #		6-7	Length of metadata
 #		METADATA
@@ -28,92 +32,213 @@ import io
 # LAYER2:
 #	...
 
-version = b'\x01'
+# Number types:
+#	0 for unsigned int
+#	16 for signed int
+#	32 for float
+#	+ length in bytes
+
+#	e.g. int32 = 16 (int) + 4 bytes = 20
+
+version = b'\x02'
+
+def get_ntype(dtype):
+	k = dtype.kind
+	i = dtype.itemsize
+	if k == 'u':
+		return i
+	elif k == 'i':
+		return i+0x10
+	elif k == 'f':
+		return i+0x20
+
+def get_dtype(ntype):
+	k, i = np.divmod(ntype, 16)
+	if k == 0:
+		ntype = 'u'
+	elif k == 1:
+		ntype = 'i'
+	elif k == 2:
+		ntype = 'f'
+	if ntype:
+		return np.dtype(ntype + str(i))
 
 # Conversion to little endian
 def le(n):
 	return n.newbyteorder("<").tobytes()
 
-layer_count = 0
+drv = gdal.GetDriverByName("MEM")
 
-def layer(data, datamap, datatype, frag, meta=b""): # Add a layer
-	dmin = int(np.floor(datamap.min()))
-	dmax = int(np.floor(datamap.max()))
-	signed = dmin < 0
-	letter = "i" if signed else "u"
-	absmax = max(dmax, -dmin-1)
-	if absmax < 0x100:
-		itemsize = 1
-	elif absmax < 0x10000:
-		itemsize = 2
-	elif absmax < 0x100000000:
-		itemsize = 4
-	else:
-		itemsize = 8
+class Layer:
+	def __init__(self, dataset, layer_type=0, metadata='', interp=0):
+		self.type = layer_type
+		self.metadata = metadata
+		self.interp = interp
+		self.dataset = dataset
 
-	datamap = datamap.astype("<"+letter+str(itemsize))
+		"""
+		if len(args) >= 1:
+			data = args[0]
+			if isinstance(data, str):
+				self.dataset = gdal.Open(data)
+			elif isinstance(data, gdal.Dataset):
+				self.dataset = data
+			elif isinstance(data, io.IOBase):
+				self.load(data, frag=frag)
+		"""
 
-	(Y, X) = datamap.shape
+	"""
+	def load(self, obj, frag=128):
+		self.type = obj.read(1)[0]
+		dtype = get_dtype(obj.read(1)[0])
+		table_length = int(np.fromstring(obj.read(4), 'u4'))
+		meta_length = int(np.fromstring(obj.read(2), 'u2'))
+		self.metadata = obj.read(meta_length).decode()
 
-	# Geometry stuff
-	table_size_x, table_size_y = int(np.ceil(X / frag)), int(np.ceil(Y / frag))
-	table_size = table_size_x * table_size_y
+		table = np.fromstring(zlib.decompress(obj.read(table_length)), 'u4')
 
-	layer_table = np.zeros(table_size, dtype=np.uint32).newbyteorder("<") # Table will be a list of the position of every chunk in the data section
-	layer_data = io.BytesIO()
-	i = 0
-	n = 0
-	for y in range(0, Y, frag):
-		for x in range(0, X, frag):
-			part = datamap[y:y+frag,x:x+frag] # Take only the chunk x;y
-			part_raw = part.tobytes() # Convert it into binary
-			n += layer_data.write(zlib.compress(part_raw, 9)) # Add this to the binary buffer, and increment n by the number of bytes
-			layer_table[i] = n # Sets the position of the end of the chunk
-			i += 1
+		i = 0
+		for address in table:
+			chunk = np.frombuffer(zlib.decompress(obj.read(address-i)), dtype).reshape(frag, frag)
+			i = address
+	"""
 
-	layer_table_raw = zlib.compress(layer_table.tobytes(), 9) # Compress the table too
-	table_length = len(layer_table_raw)
-	meta_length = len(meta)
-	layer_header = le(np.uint8(datatype)) + le(np.uint8(itemsize+signed*16)) + le(np.uint32(table_length)) + le(np.uint16(meta_length)) + meta
+	def get_parameters(self, wanted):
+		params = {}
+		ds = self.dataset
+		if 'proj' in wanted:
+			proj = osr.SpatialReference()
+			proj.ImportFromWkt(ds.GetProjection())
+			params['proj'] = proj.ExportToProj4()
+		if 'geotransform' in wanted:
+			params['geotransform'] = ds.GetGeoTransform()
+		if 'X' in wanted:
+			params['X'] = ds.RasterXSize
+		if 'Y' in wanted:
+			params['Y'] = ds.RasterYSize
+		return params
 
-	# Add this to the main binary
-	data.write(layer_header)
-	data.write(layer_table_raw)
-	data.write(layer_data.getbuffer())
+	def generate(self, obj, frag=128, proj=None, geotransform=None, X=None, Y=None):
+		ds = self.dataset
+		ds_proj = osr.SpatialReference()
+		ds_proj.ImportFromWkt(ds.GetProjection())
+		ds_gt = ds.GetGeoTransform()
 
-	global layer_count
-	layer_count += 1
+		reproject = False
 
-def generate(file_output, file_conf, heightmap, rivermap=None, landmap=None, landmap_legend=None, frag=80, scale=40):
-	global table_size
-	print("Generating database")
+		if proj is None or ds_proj.ExportToProj4() == proj:
+			target_proj = ds_proj
+		else:
+			reproject = True
+			target_proj = osr.SpatialReference()
+			target_proj.ImportFromProj4(proj)
 
-	(Y, X) = heightmap.shape
+		if geotransform is None or geotransform == ds_gt:
+			target_gt = ds_gt
+		else:
+			reproject = True
+			target_gt = geotransform
 
-	data = io.BytesIO() # This allows faster concatenation
+		if X is None:
+			X = ds.RasterXSize
+		if Y is None:
+			Y = ds.RasterYSize
 
-	heightmap //= scale
+		if reproject:
+			new_ds = drv.Create("", X, Y, 1, ds.GetRasterBand(1).DataType)
+			new_ds.SetGeoTransform(target_gt)
+			gdal.ReprojectImage(ds, new_ds, ds_proj.ExportToWkt(), target_proj.ExportToWkt(), self.interp)
+		else:
+			new_ds = ds
 
-	print("Adding heightmap")
-	layer(data, heightmap, 0, frag)
+		array = new_ds.GetTiledVirtualMemArray(tilexsize=frag, tileysize=frag).newbyteorder('<')
+		tiles_y, tiles_x = array.shape[:2]
+		table = np.zeros(tiles_x*tiles_y, dtype='<u4')
 
-	if type(rivermap) is not type(None):
-		print("Adding rivermap")
-		layer(data, rivermap, 1, frag)
+		data = io.BytesIO()
+		n = 0
+		i = 0
+		for row in array:
+			for tile in row:
+				n += data.write(zlib.compress(tile.tobytes(), 9))
+				table[i] = n
+				i += 1
 
-	if type(landmap) is not type(None):
-		print("Adding landcover")
-		layer(data, landmap, 2, frag, meta=landmap_legend)
+		table_bytes = zlib.compress(table.tobytes(), 9)
+		metadata = self.metadata.encode()
 
-	print("Writing file")
-	# Build file header
-	header = b'GEOMG' + version + le(np.uint16(frag)) + le(np.uint16(X)) + le(np.uint16(Y)) + le(np.uint8(layer_count))
+		header =  le(np.uint8(self.type)) + le(np.uint8(get_ntype(array.dtype))) + le(np.uint32(len(table_bytes))) + le(np.uint16(len(metadata))) + metadata
+		print(header)
 
-	# Write in files
-	file_output.write(header + data.getbuffer())
-	file_output.close()
+		return obj.write(header) + obj.write(table_bytes) + obj.write(data.getbuffer())
 
-	file_conf.write("scale_y = 1")
-	file_conf.close()
+class Database:
+	def __init__(self, proj=None, geotransform=None, X=None, Y=None):
+		self.layers = {}
+		self.proj = proj
+		self.geotransform = geotransform
+		self.X = X
+		self.Y = Y
+		self.version = version
 
-	print("Done.")
+		"""
+		if len(args) >= 1:
+			data = args[0]
+			if isinstance(data, str):
+				with open(args[0], 'rb') as f:
+					self.load(f)
+			elif isinstance(data, io.IOBase):
+				self.load(data)
+		"""
+
+	"""
+	def load(self, obj):
+		if obj.read(5) != b'GEOMG':
+			print("WARNING: File signature not recognized!")
+
+		self.version = obj.read(1)[0]
+		self.frag = int(np.fromstring(obj.read(2), 'u2'))
+		self.X = int(np.fromstring(obj.read(2), 'u2'))
+		self.Y = int(np.fromstring(obj.read(2), 'u2'))
+		layer_count = obj.read(1)[0]
+		proj_length = int(np.fromstring(obj.read(2), 'u2'))
+		self.proj = obj.read(proj_length).decode()
+		self.geotransform = tuple(np.fromstring(obj.read(48), 'f8').tolist())
+
+		for i in range(layer_count):
+			layer = Layer(obj)
+			self.layers[layer.type] = layer
+	"""
+
+	def add_layer(self, layer):
+		self.layers[layer.type] = layer
+
+	def write(self, filename, **kwargs):
+		with open(filename, 'wb') as f:
+			self.generate(f, **kwargs)
+
+	def generate(self, obj, frag=128):
+		params = self.layers[0].get_parameters({'proj', 'geotransform', 'X', 'Y'})
+		if self.proj is not None:
+			params['proj'] = self.proj
+		if self.geotransform is not None:
+			params['geotransform'] = self.geotransform
+		if self.X is not None:
+			params['X'] = self.X
+		if self.Y is not None:
+			params['Y'] = self.Y
+
+		params['X'] = int(np.ceil(params['X']/frag))*frag
+		params['Y'] = int(np.ceil(params['Y']/frag))*frag
+
+		bproj = params['proj'].encode()
+
+		header = b'GEOMG' + version + le(np.uint16(frag)) + le(np.uint16(params['X'])) + le(np.uint16(params['Y'])) + le(np.uint16(len(bproj))) + bproj + le(np.float64(params['geotransform'])) + le(np.uint8(len(self.layers)))
+		print(header)
+
+		n = obj.write(header)
+
+		for layer in self.layers.values():
+			n += layer.generate(obj, frag=frag, **params)
+
+		return n
