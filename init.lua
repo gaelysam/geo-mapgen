@@ -38,7 +38,6 @@ if file:read(5) ~= "GEOMG" then
 end
 
 local version = readn(file:read(1), num.uint8)
-print(version)
 
 -- Geometry stuff
 local frag = readn(file:read(2), num.uint16)
@@ -92,12 +91,8 @@ local biome_list = {}
 local proj, geotransform
 if version >= 2 then
 	local proj_length = readn(file:read(2), num.uint16)
-	print(proj_length)
 	proj = file:read(proj_length)
-	local geotransform_raw = file:read(48)
-	print(geotransform_raw:byte(1, 48))
-	geotransform = {readn(geotransform_raw, num.float64)}
-	print(unpack(geotransform))
+	geotransform = {readn(file:read(48), num.float64)}
 end
 
 -- Layers
@@ -119,11 +114,7 @@ local layers = {}
 local layer_count = readn(file:read(1), num.uint8)
 for l=1, layer_count do
 	local layertype = readn(file:read(1), num.uint8) -- Type of data: 0 = heightmap, 1 = rivermap
-	local byte = file:read(1)
-	print(byte:byte())
-	local ndatatype = readn(byte, num.uint8)
-	print(ndatatype)
-	local datatype = datatypes[ndatatype]
+	local datatype = datatypes[readn(file:read(1), num.uint8)]
 	local itemsize = datatype[1]
 
 	local index_length = readn(file:read(4), num.uint32)
