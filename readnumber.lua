@@ -116,7 +116,7 @@ local function get_reader(ntype)
 	return reader
 end
 
-function numberio.readnumber(input, ntype)
+function numberio.readnumber(input, ntype, pack)
 	if type(ntype) == "string" then
 		ntype = ntypes[ntype]
 	end
@@ -130,7 +130,11 @@ function numberio.readnumber(input, ntype)
 
 	if inputlen == 1 then
 		local bytes = {input:byte(1, len)}
-		return reader(bytes)
+		if pack then
+			return {reader(bytes)}
+		else
+			return reader(bytes)
+		end
 	else
 		local v = {}
 		local start = 1
@@ -141,7 +145,11 @@ function numberio.readnumber(input, ntype)
 			start = stop + 1
 		end
 
-		return unpack(v)
+		if pack then
+			return v
+		else
+			return unpack(v)
+		end
 	end
 end
 

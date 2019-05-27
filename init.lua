@@ -147,7 +147,7 @@ for l=1, layer_count do
 		meta = file:read(meta_length)
 	end
 
-	local index = {readn(minetest.decompress(file:read(index_length)), num.uint32)}
+	local index = readn(minetest.decompress(file:read(index_length)), num.uint32, true)
 	index[0] = 0 -- Variable is called index instead of table to avoid name conflicts. Will contain a list of the ending position for every chunk, begin at chunk 1, so (unexisting) chunk 0 would end at pos 0. This makes simpler the calculation of chunk size that is index[i] - index[i-1] even for i=1.
 
 	local delay = {} -- Delay table, will contain the number of mapgen calls before unloading, for every loaded chunk

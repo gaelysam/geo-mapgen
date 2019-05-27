@@ -70,7 +70,7 @@ def le(n):
 drv = gdal.GetDriverByName("MEM")
 
 class Layer:
-	def __init__(self, dataset, layer_type=0, metadata='', interp=0, scale=1, dtype=None):
+	def __init__(self, dataset, layer_type=0, metadata='', interp=0, dtype=None):
 		self.type = layer_type
 		self.metadata = metadata
 		self.interp = interp
@@ -78,7 +78,6 @@ class Layer:
 			self.dataset = dataset
 		else:
 			self.dataset = gdal.Open(dataset)
-		self.scale = scale
 		self.dtype = dtype
 
 		"""
@@ -121,8 +120,6 @@ class Layer:
 			params['X'] = ds.RasterXSize
 		if 'Y' in wanted:
 			params['Y'] = ds.RasterYSize
-		if 'scale' in wanted:
-			params['scale'] = ds.scale
 		return params
 
 	def generate(self, obj, frag=128, proj=None, geotransform=None, X=None, Y=None):
@@ -163,7 +160,7 @@ class Layer:
 			dtype = array.dtype
 		else:
 			dtype = np.dtype(self.dtype)
-		dtype.newbyteorder('<')
+		dtype = dtype.newbyteorder('<')
 
 		tiles_y, tiles_x = array.shape[:2]
 		table = np.zeros(tiles_x*tiles_y, dtype='<u4')
@@ -171,9 +168,10 @@ class Layer:
 		data = io.BytesIO()
 		n = 0
 		i = 0
+		array_callback = self.on_array_save
 		for row in array:
 			for tile in row:
-				scaled_tile = (tile*self.scale).astype(dtype)
+				scaled_tile = array_callback(tile).astype(dtype)
 				n += data.write(zlib.compress(scaled_tile.tobytes(), 9))
 				table[i] = n
 				i += 1
@@ -185,6 +183,21 @@ class Layer:
 		print(header)
 
 		return obj.write(header) + obj.write(table_bytes) + obj.write(data.getbuffer())
+
+	def on_array_save(self, array): # Function to be redefined by subclasses
+		return array
+
+class Heightmap(Layer):
+	def __init__(self, dataset, scale=1, **kwargs):
+		Layer.__init__(self, dataset, **kwargs)
+		self.type = 0
+		self.scale = scale
+
+	def on_array_save(self, array):
+		if self.scale == 1:
+			return array
+		else:
+			return array*self.scale
 
 class Database:
 	def __init__(self, proj=None, geotransform=None, X=None, Y=None):
