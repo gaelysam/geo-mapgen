@@ -70,11 +70,16 @@ def le(n):
 drv = gdal.GetDriverByName("MEM")
 
 class Layer:
-	def __init__(self, dataset, layer_type=0, metadata='', interp=0):
+	def __init__(self, dataset, layer_type=0, metadata='', interp=0, scale=1, dtype=None):
 		self.type = layer_type
 		self.metadata = metadata
 		self.interp = interp
-		self.dataset = dataset
+		if isinstance(dataset, gdal.Dataset):
+			self.dataset = dataset
+		else:
+			self.dataset = gdal.Open(dataset)
+		self.scale = scale
+		self.dtype = dtype
 
 		"""
 		if len(args) >= 1:
@@ -116,6 +121,8 @@ class Layer:
 			params['X'] = ds.RasterXSize
 		if 'Y' in wanted:
 			params['Y'] = ds.RasterYSize
+		if 'scale' in wanted:
+			params['scale'] = ds.scale
 		return params
 
 	def generate(self, obj, frag=128, proj=None, geotransform=None, X=None, Y=None):
@@ -151,7 +158,13 @@ class Layer:
 		else:
 			new_ds = ds
 
-		array = new_ds.GetTiledVirtualMemArray(tilexsize=frag, tileysize=frag).newbyteorder('<')
+		array = new_ds.GetTiledVirtualMemArray(tilexsize=frag, tileysize=frag)
+		if self.dtype is None:
+			dtype = array.dtype
+		else:
+			dtype = np.dtype(self.dtype)
+		dtype.newbyteorder('<')
+
 		tiles_y, tiles_x = array.shape[:2]
 		table = np.zeros(tiles_x*tiles_y, dtype='<u4')
 
@@ -160,14 +173,15 @@ class Layer:
 		i = 0
 		for row in array:
 			for tile in row:
-				n += data.write(zlib.compress(tile.tobytes(), 9))
+				scaled_tile = (tile*self.scale).astype(dtype)
+				n += data.write(zlib.compress(scaled_tile.tobytes(), 9))
 				table[i] = n
 				i += 1
 
 		table_bytes = zlib.compress(table.tobytes(), 9)
 		metadata = self.metadata.encode()
 
-		header =  le(np.uint8(self.type)) + le(np.uint8(get_ntype(array.dtype))) + le(np.uint32(len(table_bytes))) + le(np.uint16(len(metadata))) + metadata
+		header =  le(np.uint8(self.type)) + le(np.uint8(get_ntype(dtype))) + le(np.uint32(len(table_bytes))) + le(np.uint16(len(metadata))) + metadata
 		print(header)
 
 		return obj.write(header) + obj.write(table_bytes) + obj.write(data.getbuffer())
