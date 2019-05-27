@@ -30,6 +30,24 @@ local enable_plants = get_bool("plants")
 
 local remove_delay = 10 -- Number of mapgen calls until a chunk is unloaded
 
+-- Load proj lib (if allowed by mod security)
+local ie = minetest.request_insecure_environment()
+local projlib
+if ie then
+	projlib = ie.require("proj")
+	if projlib then
+		print("[geo_mapgen] Using Lua proj library")
+	else
+		print("[geo_mapgen] Could not find Lua proj library")
+	end
+else
+	print("[geo_mapgen] WARNING: Loading of proj library blocked by mod security. Some extra features like teleporting to a location will not be available.")
+end
+
+-- Load geotransform lib
+local GeoTransform = dofile(modpath .. "/" .. "geotransform.lua")
+
+-- Load number lib
 local num = dofile(modpath .. "/" .. "readnumber.lua")
 local readn = num.readnumber
 
@@ -38,6 +56,9 @@ if file:read(5) ~= "GEOMG" then
 end
 
 local version = readn(file:read(1), num.uint8)
+if projlib and version < 2 then
+	print('[geo_mapgen] Georeferencing not available for this database version.')
+end
 
 -- Geometry stuff
 local frag = readn(file:read(2), num.uint16)
@@ -47,9 +68,11 @@ local chunks_x = math.ceil(X / frag) -- Number of chunks along X axis
 local chunks_z = math.ceil(Z / frag) -- Number of chunks along Z axis
 
 local xmin = math.ceil(offset_x)
-local xmax = math.floor(X/scale_x+offset_x)
-local zmin = math.ceil(-Z/scale_z+offset_z)
+local xmax = math.floor(X*scale_x+offset_x)
+local zmin = math.ceil(-Z*scale_z+offset_z)
 local zmax = math.floor(offset_z)
+
+local game_to_map = GeoTransform(offset_x, scale_x, 0, offset_z, 0, -scale_z):reverse()
 
 local last_chunk_length = (X-1) % frag + 1 -- Needed for incrementing index because last chunk may be truncated in length and therefore need an unusual increment
 
@@ -88,11 +111,11 @@ local biomes = false
 local biome_list = {}
 
 -- Projection parameters
-local proj, geotransform
+local proj, map_to_proj
 if version >= 2 then
 	local proj_length = readn(file:read(2), num.uint16)
 	proj = file:read(proj_length)
-	geotransform = {readn(file:read(48), num.float64)}
+	map_to_proj = GeoTransform(readn(file:read(48), num.float64))
 end
 
 -- Layers
@@ -216,11 +239,11 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	for z = math.max(zmin, minp.z), math.min(zmax, maxp.z) do
 		local ivm = a:index(x, minp.y, z)
 
-		local xmap = math.floor((x-offset_x) * scale_x)
-		local zmap = math.floor((z-offset_z) * scale_z)
+		local xmap, zmap = game_to_map(x, z)
+		xmap, zmap = math.floor(xmap), math.floor(zmap)
 
 		local xchunk = math.floor(xmap / frag)
-		local zchunk = math.floor(-zmap / frag)
+		local zchunk = math.floor(zmap / frag)
 		local nchunk = xchunk + zchunk * chunks_x + 1
 		
 		local increment = frag
@@ -228,10 +251,10 @@ minetest.register_on_generated(function(minp, maxp, seed)
 			increment = last_chunk_length
 		end
 		local xpx = xmap % frag
-		local zpx = -zmap % frag
+		local zpx = zmap % frag
 		local npx = xpx + zpx * increment + 1 -- Increment is used here
 
-		local h = math.floor(value(heightmap, nchunk, npx) / scale_y + offset_y)
+		local h = math.floor(value(heightmap, nchunk, npx) * scale_y + offset_y)
 
 		if minp.y <= math.max(h,offset_y) then
 			local river_here = false
@@ -350,6 +373,92 @@ minetest.register_on_generated(function(minp, maxp, seed)
 	time_sum = time_sum + time
 	time_sum2 = time_sum2 + time ^ 2
 end)
+
+if projlib and proj then
+	local wgs84 = "wgs84 +degrees"
+	local project = projlib:new(wgs84, proj)
+	local unproject = project:reverse()
+
+	local game_to_proj = game_to_map:combine(map_to_proj)
+	local proj_to_game = game_to_proj:reverse()
+
+	local function get_rw_coords(pos)
+		return unproject(game_to_proj(pos.x, pos.z))
+	end
+
+	local function get_game_pos(lon, lat)
+		return proj_to_game(project(lon, lat))
+	end
+
+	local function display_dms(angle)
+		local degree, rem = math.modf(angle)
+		local minute, rem = math.modf(math.abs(rem)*60)
+		local second = math.floor(rem*60)
+		return ("%d°%02u'%02u\""):format(degree, minute, second)
+	end
+
+	minetest.register_chatcommand("rwpos", {
+		params = "",
+		description = "Get your real-world position in latitude/longitude",
+		func = function(name)
+			local player = minetest.get_player_by_name(name)
+			local pos = player:getpos()
+			local lon, lat = get_rw_coords(pos)
+			local latdir = lat > 0 and 'N' or 'S'
+			local londir = lon > 0 and 'E' or 'W'
+			return true, ("%s%s, %s%s"):format(display_dms(math.abs(lat)), latdir, display_dms(math.abs(lon)), londir)
+		end,
+	})
+
+	local function parse_coordinate(cstr)
+		if tonumber(cstr) then
+			return tonumber(cstr)
+		end
+		local deg, min, sec = cstr:match("^(-?[%d.]+)°?([%d.]*)'?([%d.]*)\"?$")
+		return tonumber(deg) + (tonumber(min) or 0)/60 + (tonumber(sec) or 0)/3600
+	end
+
+	minetest.register_chatcommand("rwtp", {
+		params = "<lat> <lon>",
+		privs = {teleport=true},
+		description = "Teleport to a real-world position in latitude/longitude",
+		func = function(name, param)
+			local player = minetest.get_player_by_name(name)
+			local latdir1, latdeg, latmin, latsec, latdir2, londir1, londeg, lonmin, lonsec, londir2 = param:gsub("°", "~"):match("^([NS]?)%s*(-?[%d.]+).?([%d.]*).?([%d.]*)[^,%sNS]?([NS]?)[,%s]%s*([EW]?)%s*(-?[%d.]+).?([%d.]*).?([%d.]*)[^,%sEW]?([EW]?)$")
+
+			if not (latdeg and londeg) then
+				return false, "Invalid coordinates"
+			end
+			latdeg, londeg = tonumber(latdeg), tonumber(londeg)
+			if not (latdeg and londeg) then
+				return false, "Invalid coordinates"
+			end
+			
+			local latdir, londir = 1, 1
+			if latdir1 == 'S' or latdir2 == 'S' then
+				latdir = -1
+			end
+			if londir1 == 'W' or londir2 == 'W' then
+				londir = -1
+			end
+			if latdeg < 0 then
+				latdir = -latdir
+				latdeg = -latdeg
+			end
+			if londeg < 0 then
+				londir = -londir
+				londeg = -londeg
+			end
+			
+			local lat = latdir * (latdeg + (tonumber(latmin) or 0)/60 + (tonumber(latsec) or 0)/3600)
+			local lon = londir * (londeg + (tonumber(lonmin) or 0)/60 + (tonumber(lonsec) or 0)/3600)
+
+			local x, z = get_game_pos(lon, lat)
+			player:setpos({x=x, y=0, z=z})
+			return true, ("Teleported at %f %f"):format(lat, lon)
+		end,
+	})
+end			
 
 minetest.register_on_shutdown(function()
 	print("[geo_mapgen] Mapgen calls: " .. mapgens)

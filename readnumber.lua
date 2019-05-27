@@ -100,7 +100,7 @@ local function get_reader(ntype)
 		local max = 2^(nbits-1)
 		local decr = 2^nbits
 		reader = function(input)
-			n = read_bits(input, nbits)
+			local n = read_bits(input, nbits)
 			if n >= max then
 				return n - decr
 			end
