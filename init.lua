@@ -68,8 +68,8 @@ local chunks_x = math.ceil(X / frag) -- Number of chunks along X axis
 local chunks_z = math.ceil(Z / frag) -- Number of chunks along Z axis
 
 local xmin = math.ceil(offset_x)
-local xmax = math.floor(X*scale_x+offset_x)
-local zmin = math.ceil(-Z*scale_z+offset_z)
+local xmax = math.ceil(X*scale_x+offset_x)-1
+local zmin = math.floor(-Z*scale_z+offset_z)+1
 local zmax = math.floor(offset_z)
 
 local game_to_map = GeoTransform(offset_x, scale_x, 0, offset_z, 0, -scale_z):reverse()
