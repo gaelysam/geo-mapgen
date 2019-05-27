@@ -180,7 +180,6 @@ class Layer:
 		metadata = self.metadata.encode()
 
 		header =  le(np.uint8(self.type)) + le(np.uint8(get_ntype(dtype))) + le(np.uint32(len(table_bytes))) + le(np.uint16(len(metadata))) + metadata
-		print(header)
 
 		return obj.write(header) + obj.write(table_bytes) + obj.write(data.getbuffer())
 
@@ -261,7 +260,6 @@ class Database:
 		bproj = params['proj'].encode()
 
 		header = b'GEOMG' + version + le(np.uint16(frag)) + le(np.uint16(params['X'])) + le(np.uint16(params['Y'])) + le(np.uint16(len(bproj))) + bproj + le(np.float64(params['geotransform'])) + le(np.uint8(len(self.layers)))
-		print(header)
 
 		n = obj.write(header)
 

@@ -26,7 +26,6 @@ class Landcover(db.Layer):
 
 		self.lctable = transform_table
 		self.metadata = ','.join(existing_biomes)
-		print(self.metadata)
 
 	def on_array_save(self, array):
 		return self.lctable[array]
