@@ -10,6 +10,7 @@ deciduous_forest,default:stone,default:dirt 3,default:dirt_with_grass,grass:0.50
 coniferous_forest,default:stone,default:dirt 2,default:dirt_with_coniferous_litter,grass:0.20,fern:0.30,pine_tree:0.08,,
 mixed_forest,default:stone,default:dirt 2,default:dirt_with_grass,grass:0.40,bush:0.01,tree:0.04,pine_tree:0.03,aspen_tree:0.02
 rainforest,default:stone,default:dirt 3,default:dirt_with_rainforest_litter,jungletree:0.12,junglegrass:0.60,,,
+wetland,default:stone,default:dirt 3,default:dirt_with_grass,papyrus:0.2,,,,
 fields,default:stone,default:dirt,default:dirt_with_grass,wheat:0.9,,,,
 sand,default:stone,,default:sand 4,,,,,
 desert,default:desert_stone,,default:desert_sand 2,dry_shrub:0.005,,,,

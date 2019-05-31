@@ -2,6 +2,7 @@
 grass,node,default:grass_1,default:grass_2,default:grass_3,default:grass_4,default:grass_5
 dry_grass,node,default:dry_grass_1,default:dry_grass_2,default:dry_grass_3,default:dry_grass_4,default:dry_grass_5
 junglegrass,node,default:junglegrass,,,,
+papyrus,node,default:papyrus,,,,
 fern,node,default:fern_1,default:fern_2,default:fern_3,,
 wheat,node,farming:wheat_5,farming:wheat_6,farming:wheat_7,farming:wheat_8,
 dry_shrub,node,default:dry_shrub,,,,
