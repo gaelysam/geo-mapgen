@@ -11,8 +11,8 @@ end
 
 local function reverse(gt)
 	local a, b, c, d, e, f = unpack(gt)
-	local det = 1/(b*f-e*c)
-	return geotransform((c*d-a*f)*det, f*det, -c*det, (a*e-b*d)*det, -e*det, b*det)
+	local det = b*f-e*c
+	return geotransform((c*d-a*f)/det, f/det, -c/det, (a*e-b*d)/det, -e/det, b/det)
 end
 
 local function combine(gt1, gt2)
