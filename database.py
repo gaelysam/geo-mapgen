@@ -2,6 +2,7 @@ import numpy as np
 import zlib
 from osgeo import osr, gdal
 import io
+import os
 
 # Database structure: (all is little endian)
 # HEADER:
@@ -67,7 +68,8 @@ def get_dtype(ntype):
 def le(n):
 	return n.newbyteorder("<").tobytes()
 
-drv = gdal.GetDriverByName("MEM")
+memdrv = gdal.GetDriverByName("MEM")
+tifdrv = gdal.GetDriverByName("GTiff")
 
 class Layer:
 	def __init__(self, dataset, layer_type=0, metadata='', interp=0, dtype=None):
@@ -122,7 +124,7 @@ class Layer:
 			params['Y'] = ds.RasterYSize
 		return params
 
-	def generate(self, obj, frag=128, proj=None, geotransform=None, X=None, Y=None):
+	def generate(self, obj, frag=128, proj=None, geotransform=None, X=None, Y=None, use_temp_file=False):
 		ds = self.dataset
 		ds_proj = osr.SpatialReference()
 		ds_proj.ImportFromWkt(ds.GetProjection())
@@ -149,7 +151,14 @@ class Layer:
 			Y = ds.RasterYSize
 
 		if reproject:
-			new_ds = drv.Create("", X, Y, 1, ds.GetRasterBand(1).DataType)
+			if use_temp_file:
+				drv = tifdrv
+				name = "temp.tif"
+			else:
+				drv = memdrv
+				name = ""
+
+			new_ds = drv.Create(name, X, Y, 1, ds.GetRasterBand(1).DataType)
 			new_ds.SetGeoTransform(target_gt)
 			gdal.ReprojectImage(ds, new_ds, ds_proj.ExportToWkt(), target_proj.ExportToWkt(), self.interp)
 		else:
@@ -175,6 +184,12 @@ class Layer:
 				n += data.write(zlib.compress(scaled_tile.tobytes(), 9))
 				table[i] = n
 				i += 1
+
+		del array
+		if reproject:
+			del new_ds
+			if use_temp_file:
+				os.remove("temp.tif")
 
 		table_bytes = zlib.compress(table.tobytes(), 9)
 		metadata = self.metadata.encode()
@@ -243,7 +258,7 @@ class Database:
 		with open(filename, 'wb') as f:
 			self.generate(f, **kwargs)
 
-	def generate(self, obj, frag=128):
+	def generate(self, obj, frag=128, use_temp_file=False):
 		params = self.layers[0].get_parameters({'proj', 'geotransform', 'X', 'Y'})
 		if self.proj is not None:
 			params['proj'] = self.proj
@@ -264,6 +279,6 @@ class Database:
 		n = obj.write(header)
 
 		for layer in self.layers.values():
-			n += layer.generate(obj, frag=frag, **params)
+			n += layer.generate(obj, frag=frag, use_temp_file=use_temp_file, **params)
 
 		return n
